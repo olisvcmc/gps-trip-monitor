@@ -6,9 +6,9 @@ var watchId = null;
 var bgGeo = null;
 var hasBgPlugin = false;
 var bgGeoConfigured = false;
-var tripPoints = [];
+var tripPoints = [];       // [{lat, lng, t, speed, accuracy}]
 var totalDistanceKm = 0;
-var tripState = 'idle';
+var tripState = 'idle';    // idle | tracking | paused
 var startTime = null;
 var pausedAccumMs = 0;
 var lastPauseStart = null;
@@ -47,11 +47,10 @@ var el = {
     authError: document.getElementById('authError'),
     btnAuthSubmit: document.getElementById('btnAuthSubmit'),
     btnAuthToggle: document.getElementById('btnAuthToggle'),
-    btnLogout: document.getElementById('btnLogout'),
-    currentUser: document.getElementById('currentUser') // TAMBAHKAN INI
+    btnLogout: document.getElementById('btnLogout')
 };
 
-// ---------- Helper: Waktu Lokal (Fix Jam) ----------
+// ---------- Helper: Waktu Lokal HP (FIX JAM) ----------
 function getLocalDateTime() {
     var now = new Date();
     var pad = function(n) { return n < 10 ? '0' + n : n; };
@@ -77,12 +76,6 @@ function boot() {
 
 function enterApp() {
     el.authOverlay.hidden = true;
-    
-    // TAMPILKAN NAMA USER DI DASHBOARD
-    if (el.currentUser && currentSession) {
-        el.currentUser.textContent = currentSession.username;
-    }
-
     initMap();
     bindControls();
     renderHistory();
@@ -106,7 +99,7 @@ function enterApp() {
             function (err) {
                 var msg = 'GPS tidak tersedia';
                 if (err && err.code === 1) msg = 'Izin lokasi ditolak';
-                else if (err && err.code === 3) msg = 'Sinyal GPS lambat';
+                else if (err && err.code === 3) msg = 'Sinyal GPS lambat, coba tombol pusatkan';
                 setGpsStatus('off', msg);
                 startIdleWatch();
             },
@@ -167,7 +160,6 @@ function doLogout() {
     stopIdleWatch();
     TripDB.clearSession(function () {
         currentSession = null;
-        if (el.currentUser) el.currentUser.textContent = 'Guest'; // Reset nama user
         el.historyOverlay.hidden = true;
         el.authUsername.value = '';
         el.authPassword.value = '';
@@ -269,6 +261,14 @@ function setupBackgroundGeolocation(onReady) {
         });
         bgGeo.finish();
     });
+    bgGeo.on('error', function (error) {
+        showToast('Background GPS error: ' + (error && error.message ? error.message : error));
+    });
+    bgGeo.on('authorization', function (status) {
+        if (status === bgGeo.AUTHORIZED) return;
+        showToast('Izin lokasi "selalu izinkan" diperlukan.');
+        setTimeout(function () { bgGeo.showAppSettings(); }, 1000);
+    });
 }
 
 // ---------- Map ----------
@@ -355,9 +355,7 @@ function handleLocationUpdate(data) {
     updateHud(point);
 }
 
-function onPosition(pos) {
-    handleLocationUpdate({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy, speedMs: pos.coords.speed, time: Date.now() });
-}
+function onPosition(pos) { handleLocationUpdate({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy, speedMs: pos.coords.speed, time: Date.now() }); }
 function onPositionError(err) { setGpsStatus('off', 'Sinyal GPS lemah'); showToast('GPS error: ' + (err.message || 'tidak dapat mengambil lokasi')); }
 
 function updateHud(point) {
@@ -395,21 +393,30 @@ function haversineKm(lat1, lon1, lat2, lon2) {
 }
 function toRad(deg) { return deg * Math.PI / 180; }
 
+// ---------- Save Trip (FIX JAM & KOORDINAT) ----------
 function saveTrip() {
     var elapsedMs = Date.now() - startTime - pausedAccumMs;
+    
+    // DEBUG: Cek di Console apakah titik koordinat benar-benar ada
+    console.log('DEBUG saveTrip: Jumlah titik yang akan disimpan =', tripPoints.length);
+    console.log('DEBUG saveTrip: Contoh 2 titik pertama =', tripPoints.slice(0, 2));
+
     var trip = {
         id: 'trip_' + Date.now(),
         user_id: currentSession ? currentSession.user_id : null,
-        date: getLocalDateTime(), // FIX JAM: Gunakan waktu lokal HP
+        date: getLocalDateTime(), // FIX JAM: Gunakan waktu lokal HP, bukan UTC
         distanceKm: Number(totalDistanceKm.toFixed(2)),
         durationMs: elapsedMs,
-        avgSpeedKmh: speedSamples.length ? Number((speedSamples.reduce(function (a, b) { return a + b; }, 0) / speedSamples.length).toFixed(1)) : 0,
-        // FIX KOORDINAT: Pastikan format array [lat, lng]
-        points: tripPoints.map(function (p) { return [p.lat, p.lng]; })
+        avgSpeedKmh: speedSamples.length
+            ? Number((speedSamples.reduce(function (a, b) { return a + b; }, 0) / speedSamples.length).toFixed(1))
+            : 0,
+        points: tripPoints.map(function (p) { return [p.lat, p.lng]; }) // FIX KOORDINAT: Pastikan format [lat, lng]
     };
+    
     TripDB.saveTrip(trip, function () {
         renderHistory();
-        showToast('Perjalanan disimpan: ' + trip.distanceKm + ' km');
+        // Tampilkan jumlah titik di notifikasi agar Anda yakin
+        showToast('Disimpan: ' + trip.distanceKm + ' km (' + tripPoints.length + ' titik)' + (TripSync.isOnline() ? ' · sync…' : ' · offline'));
         TripSync.syncNow();
     });
 }
