@@ -21,7 +21,7 @@ var isBooted = false;
 var appEntered = false;
 var controlsBound = false;
 var lastLivePing = 0;
-var bgGeoFallbackTimer = null;
+var bgGeoFallbackTimer = null; // Timer untuk fallback jika plugin tidak merespons
 
 // ---------- DOM ----------
 var el = {
@@ -66,6 +66,7 @@ function getLocalISOString(date) {
 function boot() {
     if (isBooted) return;
     isBooted = true;
+
     TripDB.init(function () {
         TripDB.getSession(function (session) {
             if (session && session.token) {
@@ -87,24 +88,44 @@ function showLoginScreen() {
 function enterApp() {
     if (appEntered) return;
     appEntered = true;
+
     el.authOverlay.hidden = true;
-    if (el.currentUser && currentSession) el.currentUser.textContent = currentSession.username;
-    if (!controlsBound) { bindControls(); controlsBound = true; }
+
+    if (el.currentUser && currentSession) {
+        el.currentUser.textContent = currentSession.username;
+    }
+
+    if (!controlsBound) {
+        bindControls();
+        controlsBound = true;
+    }
+
     initMap();
     renderHistory();
-    if (window.BackgroundGeolocation) { hasBgPlugin = true; bgGeo = window.BackgroundGeolocation; }
+
+    if (window.BackgroundGeolocation) {
+        hasBgPlugin = true;
+        bgGeo = window.BackgroundGeolocation;
+        console.log('[GPS App] BackgroundGeolocation plugin terdeteksi');
+    } else {
+        console.log('[GPS App] BackgroundGeolocation plugin TIDAK terdeteksi, pakai fallback');
+    }
+    
     TripSync.init(updateSyncUI);
+
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             function (pos) {
                 if (map) map.setView([pos.coords.latitude, pos.coords.longitude], 16);
                 setGpsStatus('ready', 'Siap');
+                console.log('[GPS App] Posisi awal didapat:', pos.coords.latitude, pos.coords.longitude);
             },
             function (err) {
                 var msg = 'GPS tidak tersedia';
                 if (err && err.code === 1) msg = 'Izin lokasi ditolak';
                 else if (err && err.code === 3) msg = 'Sinyal GPS lambat';
                 setGpsStatus('off', msg);
+                console.error('[GPS App] Gagal dapat posisi awal:', err);
             },
             { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
         );
@@ -125,13 +146,18 @@ function bindAuthControls() {
         el.btnAuthToggle.parentNode.replaceChild(newToggleBtn, el.btnAuthToggle);
         el.btnAuthToggle = newToggleBtn;
     }
-    if (el.btnAuthSubmit) el.btnAuthSubmit.addEventListener('click', submitAuth);
+
+    if (el.btnAuthSubmit) {
+        el.btnAuthSubmit.addEventListener('click', submitAuth);
+    }
     if (el.btnAuthToggle) {
         el.btnAuthToggle.addEventListener('click', function () {
             authMode = authMode === 'login' ? 'register' : 'login';
             el.authTitle.textContent = authMode === 'login' ? 'Masuk ke akun Anda' : 'Buat akun baru';
             el.btnAuthSubmit.textContent = authMode === 'login' ? 'Masuk' : 'Daftar';
-            el.btnAuthToggle.textContent = authMode === 'login' ? 'Belum punya akun? Daftar di sini' : 'Sudah punya akun? Masuk di sini';
+            el.btnAuthToggle.textContent = authMode === 'login'
+                ? 'Belum punya akun? Daftar di sini'
+                : 'Sudah punya akun? Masuk di sini';
             el.authError.hidden = true;
         });
     }
@@ -140,51 +166,109 @@ function bindAuthControls() {
 function submitAuth() {
     var username = el.authUsername.value.trim();
     var password = el.authPassword.value;
-    if (!username || !password) { showAuthError('Username dan password wajib diisi.'); return; }
+    if (!username || !password) {
+        showAuthError('Username dan password wajib diisi.');
+        return;
+    }
     el.btnAuthSubmit.disabled = true;
     el.btnAuthSubmit.textContent = authMode === 'login' ? 'Memproses…' : 'Mendaftarkan…';
     var call = authMode === 'login' ? TripAPI.login(username, password) : TripAPI.register(username, password);
     call.then(function (data) {
-        currentSession = { user_id: data.user_id, username: username, token: data.token, server_url: TripAPI.getBaseUrl() };
-        TripDB.saveSession(currentSession, function () { enterApp(); });
-    }).catch(function (err) { showAuthError(err.message || 'Tidak bisa terhubung ke server.'); })
-    .finally(function () { el.btnAuthSubmit.disabled = false; el.btnAuthSubmit.textContent = authMode === 'login' ? 'Masuk' : 'Daftar'; });
+        currentSession = {
+            user_id: data.user_id,
+            username: username,
+            token: data.token,
+            server_url: TripAPI.getBaseUrl()
+        };
+        TripDB.saveSession(currentSession, function () {
+            enterApp();
+        });
+    }).catch(function (err) {
+        showAuthError(err.message || 'Tidak bisa terhubung ke server.');
+    }).finally(function () {
+        el.btnAuthSubmit.disabled = false;
+        el.btnAuthSubmit.textContent = authMode === 'login' ? 'Masuk' : 'Daftar';
+    });
 }
 
-function showAuthError(msg) { el.authError.textContent = msg; el.authError.hidden = false; }
+function showAuthError(msg) {
+    el.authError.textContent = msg;
+    el.authError.hidden = false;
+}
 
 function updateSyncUI(status) {
     el.syncDot.className = 'sync-dot ' + (status.syncing ? 'syncing' : status.online ? 'online' : 'offline');
-    if (status.syncing) el.syncText.textContent = 'Syncing…';
-    else if (!status.online) el.syncText.textContent = status.pending > 0 ? 'Offline · ' + status.pending : 'Offline';
-    else el.syncText.textContent = status.pending > 0 ? status.pending + ' pending' : 'Tersinkron';
+    if (status.syncing) el.syncText.textContent = 'Menyinkronkan…';
+    else if (!status.online) el.syncText.textContent = status.pending > 0 ? 'Offline · ' + status.pending + ' tertunda' : 'Offline';
+    else el.syncText.textContent = status.pending > 0 ? status.pending + ' menunggu sync' : 'Tersinkron';
 }
 
 document.addEventListener('deviceready', boot, false);
-setTimeout(function () { if (!window.cordova && !isBooted) { document.removeEventListener('deviceready', boot, false); boot(); } }, 800);
+setTimeout(function () {
+    if (!window.cordova && !isBooted) {
+        document.removeEventListener('deviceready', boot, false);
+        boot();
+    }
+}, 800);
 
 // ---------- Background Geolocation ----------
 function setupBackgroundGeolocation(onReady) {
     bgGeo.configure({
-        desiredAccuracy: bgGeo.HIGH_ACCURACY, stationaryRadius: 0, distanceFilter: 0,
-        debug: false, interval: 2000, fastestInterval: 1000, activitiesInterval: 5000,
-        stopOnStillActivity: false, notificationTitle: 'GPS Trip Monitor',
-        notificationText: 'Melacak perjalanan Anda…', notificationIconColor: '#00d9c0',
-        startForeground: true, stopOnTerminate: false, startOnBoot: false,
+        desiredAccuracy: bgGeo.HIGH_ACCURACY,
+        stationaryRadius: 0, // PERBAIKAN: dari 10 ke 0, agar update lebih sering
+        distanceFilter: 0,   // PERBAIKAN: dari 8 ke 0, update setiap ada perubahan
+        debug: true,         // PERBAIKAN: true agar bisa lihat log di console
+        interval: 2000,      // PERBAIKAN: dari 4000 ke 2000ms
+        fastestInterval: 1000,
+        activitiesInterval: 5000,
+        stopOnStillActivity: false,
+        notificationTitle: 'GPS Trip Monitor',
+        notificationText: 'Melacak perjalanan Anda…',
+        notificationIconColor: '#00d9c0',
+        startForeground: true,
+        stopOnTerminate: false,
+        startOnBoot: false,
         locationProvider: bgGeo.ACTIVITY_PROVIDER
-    }, function () { bgGeoConfigured = true; if (onReady) onReady(); },
-    function (err) { showToast('Gagal konfigurasi GPS: ' + err); });
+    }, function () {
+        bgGeoConfigured = true;
+        console.log('[GPS App] BackgroundGeolocation dikonfigurasi');
+        if (onReady) onReady();
+    }, function (err) {
+        showToast('Gagal konfigurasi background GPS: ' + err);
+        console.error('[GPS App] Gagal konfigurasi bgGeo:', err);
+    });
+    
     bgGeo.on('location', function (location) {
-        handleLocationUpdate({ lat: location.latitude, lng: location.longitude, accuracy: location.accuracy,
-            speedMs: (typeof location.speed === 'number' && location.speed >= 0) ? location.speed : null, time: location.time || Date.now() });
+        console.log('[GPS App] Lokasi dari bgGeo:', location.latitude, location.longitude);
+        handleLocationUpdate({
+            lat: location.latitude,
+            lng: location.longitude,
+            accuracy: location.accuracy,
+            speedMs: (typeof location.speed === 'number' && location.speed >= 0) ? location.speed : null,
+            time: location.time || Date.now()
+        });
         bgGeo.finish();
     });
+    
     bgGeo.on('stationary', function (location) {
-        handleLocationUpdate({ lat: location.latitude, lng: location.longitude, accuracy: location.accuracy, speedMs: 0, time: location.time || Date.now() });
+        console.log('[GPS App] Stationary:', location.latitude, location.longitude);
+        handleLocationUpdate({
+            lat: location.latitude,
+            lng: location.longitude,
+            accuracy: location.accuracy,
+            speedMs: 0,
+            time: location.time || Date.now()
+        });
         bgGeo.finish();
     });
-    bgGeo.on('error', function (error) { showToast('GPS error: ' + (error && error.message ? error.message : error)); });
+    
+    bgGeo.on('error', function (error) {
+        showToast('Background GPS error: ' + (error && error.message ? error.message : error));
+        console.error('[GPS App] bgGeo error:', error);
+    });
+    
     bgGeo.on('authorization', function (status) {
+        console.log('[GPS App] Authorization status:', status);
         if (status === bgGeo.AUTHORIZED) return;
         showToast('Izin lokasi "selalu izinkan" diperlukan.');
         setTimeout(function () { bgGeo.showAppSettings(); }, 1000);
@@ -193,7 +277,13 @@ function setupBackgroundGeolocation(onReady) {
 
 // ---------- Map ----------
 function initMap() {
-    if (map) { try { map.remove(); } catch (e) {} map = null; currentMarker = null; trailPolyline = null; }
+    if (map) {
+        try { map.remove(); } catch (e) {}
+        map = null;
+        currentMarker = null;
+        trailPolyline = null;
+    }
+
     map = L.map('map', { zoomControl: false, attributionControl: false }).setView([-6.2, 106.816666], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
     trailPolyline = L.polyline([], { color: '#00d9c0', weight: 4, opacity: 0.9, lineJoin: 'round' }).addTo(map);
@@ -205,7 +295,14 @@ function bindControls() {
     if (el.btnStart) el.btnStart.addEventListener('click', startTrip);
     if (el.btnPause) el.btnPause.addEventListener('click', togglePause);
     if (el.btnStop) el.btnStop.addEventListener('click', stopTrip);
-    if (el.btnCenter) el.btnCenter.addEventListener('click', function () { if (tripPoints.length && map) { var last = tripPoints[tripPoints.length - 1]; map.setView([last.lat, last.lng], 17, { animate: true }); } });
+    if (el.btnCenter) {
+        el.btnCenter.addEventListener('click', function () {
+            if (tripPoints.length && map) {
+                var last = tripPoints[tripPoints.length - 1];
+                map.setView([last.lat, last.lng], 17, { animate: true });
+            }
+        });
+    }
     if (el.btnHistory) el.btnHistory.addEventListener('click', function () { el.historyOverlay.hidden = false; });
     if (el.btnCloseHistory) el.btnCloseHistory.addEventListener('click', function () { el.historyOverlay.hidden = true; });
     if (el.btnLogout) el.btnLogout.addEventListener('click', doLogout);
@@ -214,67 +311,141 @@ function bindControls() {
 // ---------- Trip control ----------
 function startTrip() {
     if (!navigator.geolocation) { showToast('GPS tidak didukung.'); return; }
-    tripState = 'tracking'; tripPoints = []; speedSamples = []; totalDistanceKm = 0; pausedAccumMs = 0;
-    lastLivePing = 0; startTime = Date.now();
+    tripState = 'tracking';
+    tripPoints = []; speedSamples = []; totalDistanceKm = 0; pausedAccumMs = 0;
+    lastLivePing = 0;
+    startTime = Date.now();
     if (trailPolyline) trailPolyline.setLatLngs([]);
     updateHud();
     el.btnStart.hidden = true; el.btnPause.hidden = false; el.btnPause.textContent = 'Jeda'; el.btnStop.hidden = false;
+    
     if (hasBgPlugin) {
-        setGpsStatus('live', 'Menyiapkan…');
+        setGpsStatus('live', 'Menyiapkan tracking latar belakang…');
         if (!bgGeoConfigured) {
-            setupBackgroundGeolocation(function () { bgGeo.start(); setGpsStatus('live', 'Melacak (bg)…'); });
-        } else { bgGeo.start(); setGpsStatus('live', 'Melacak (bg)…'); }
-        bgGeoFallbackTimer = setTimeout(function () {
-            if (tripPoints.length === 0 && tripState === 'tracking') {
-                showToast('Plugin GPS lambat, pakai mode normal…');
-                watchId = navigator.geolocation.watchPosition(onPosition, onPositionError, { enableHighAccuracy: true, maximumAge: 1000, timeout: 15000 });
-            }
-        }, 10000);
+            setupBackgroundGeolocation(function () {
+                bgGeo.start();
+                setGpsStatus('live', 'Melacak (latar belakang)…');
+                console.log('[GPS App] bgGeo.start() dipanggil');
+                
+                // FALLBACK: Jika 10 detik tidak ada update dari bgGeo, pakai navigator.geolocation
+                bgGeoFallbackTimer = setTimeout(function () {
+                    if (tripPoints.length === 0 && tripState === 'tracking') {
+                        console.warn('[GPS App] bgGeo tidak merespons, pakai fallback navigator.geolocation');
+                        showToast('Plugin GPS lambat, pakai mode normal…');
+                        watchId = navigator.geolocation.watchPosition(onPosition, onPositionError, {
+                            enableHighAccuracy: true,
+                            maximumAge: 1000,
+                            timeout: 15000
+                        });
+                    }
+                }, 10000); // 10 detik timeout
+            });
+        } else {
+            bgGeo.start();
+            setGpsStatus('live', 'Melacak (latar belakang)…');
+            console.log('[GPS App] bgGeo.start() dipanggil (sudah dikonfigurasi)');
+            
+            bgGeoFallbackTimer = setTimeout(function () {
+                if (tripPoints.length === 0 && tripState === 'tracking') {
+                    console.warn('[GPS App] bgGeo tidak merespons, pakai fallback');
+                    showToast('Plugin GPS lambat, pakai mode normal…');
+                    watchId = navigator.geolocation.watchPosition(onPosition, onPositionError, {
+                        enableHighAccuracy: true,
+                        maximumAge: 1000,
+                        timeout: 15000
+                    });
+                }
+            }, 10000);
+        }
     } else {
-        watchId = navigator.geolocation.watchPosition(onPosition, onPositionError, { enableHighAccuracy: true, maximumAge: 1000, timeout: 15000 });
+        watchId = navigator.geolocation.watchPosition(onPosition, onPositionError, {
+            enableHighAccuracy: true,
+            maximumAge: 1000,
+            timeout: 15000
+        });
         setGpsStatus('live', 'Melacak…');
     }
     durationTimer = setInterval(updateDuration, 1000);
 }
 
 function togglePause() {
-    if (tripState === 'tracking') { tripState = 'paused'; lastPauseStart = Date.now(); el.btnPause.textContent = 'Lanjutkan'; setGpsStatus('ready', 'Dijeda'); }
-    else if (tripState === 'paused') { tripState = 'tracking'; pausedAccumMs += Date.now() - lastPauseStart; el.btnPause.textContent = 'Jeda'; setGpsStatus('live', 'Melacak…'); }
+    if (tripState === 'tracking') {
+        tripState = 'paused'; lastPauseStart = Date.now();
+        el.btnPause.textContent = 'Lanjutkan'; setGpsStatus('ready', 'Dijeda');
+    } else if (tripState === 'paused') {
+        tripState = 'tracking'; pausedAccumMs += Date.now() - lastPauseStart;
+        el.btnPause.textContent = 'Jeda'; setGpsStatus('live', 'Melacak…');
+    }
 }
 
 function stopTrip() {
-    try { if (hasBgPlugin && bgGeo && bgGeoConfigured) bgGeo.stop(); } catch (e) {}
+    try {
+        if (hasBgPlugin && bgGeo && bgGeoConfigured) bgGeo.stop();
+    } catch (e) { console.warn('Gagal menghentikan bgGeo:', e); }
+
     if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
     if (bgGeoFallbackTimer) { clearTimeout(bgGeoFallbackTimer); bgGeoFallbackTimer = null; }
     if (durationTimer) { clearInterval(durationTimer); durationTimer = null; }
+
     tripState = 'idle';
     el.btnStart.hidden = false; el.btnPause.hidden = true; el.btnStop.hidden = true;
     setGpsStatus('ready', 'Siap');
-    if (tripPoints.length > 1) saveTrip();
-    else { showToast('Perjalanan terlalu pendek.'); tripPoints = []; totalDistanceKm = 0; speedSamples = []; if (trailPolyline) trailPolyline.setLatLngs([]); updateHud(); }
+
+    if (tripPoints.length > 1) {
+        saveTrip();
+    } else {
+        showToast('Perjalanan terlalu pendek, tidak disimpan.');
+        tripPoints = []; totalDistanceKm = 0; speedSamples = [];
+        if (trailPolyline) trailPolyline.setLatLngs([]);
+        updateHud();
+    }
 }
 
 // ---------- Geolocation callbacks ----------
 function handleLocationUpdate(data) {
     if (tripState !== 'tracking') return;
+
     var lat = data.lat, lng = data.lng, accuracy = data.accuracy, speedMs = data.speedMs;
     var prev = tripPoints[tripPoints.length - 1];
     var point = { lat: lat, lng: lng, t: data.time || Date.now(), accuracy: accuracy };
-    if (prev) { var segKm = haversineKm(prev.lat, prev.lng, lat, lng); if (segKm * 1000 > Math.max(4, (accuracy || 10) * 0.5)) totalDistanceKm += segKm; }
+
+    if (prev) {
+        var segKm = haversineKm(prev.lat, prev.lng, lat, lng);
+        if (segKm * 1000 > Math.max(4, (accuracy || 10) * 0.5)) totalDistanceKm += segKm;
+    }
+
     var speedKmh = (speedMs !== null && speedMs >= 0) ? speedMs * 3.6 : (prev ? haversineKm(prev.lat, prev.lng, lat, lng) / ((point.t - prev.t) / 3600000) : 0);
     point.speed = speedKmh; speedSamples.push(speedKmh); tripPoints.push(point);
+
     if (trailPolyline) trailPolyline.addLatLng([lat, lng]);
     if (currentMarker) currentMarker.setLatLng([lat, lng]);
     if (map) map.panTo([lat, lng], { animate: true });
     updateHud(point);
+
     if (currentSession && currentSession.token && typeof TripAPI.updateLocation === 'function') {
         var now = Date.now();
-        if (now - lastLivePing > 10000) { lastLivePing = now; TripAPI.updateLocation(lat, lng, currentSession.token).catch(function () {}); }
+        if (now - lastLivePing > 10000) {
+            lastLivePing = now;
+            TripAPI.updateLocation(lat, lng, currentSession.token).catch(function (err) {
+                console.warn('Gagal ping lokasi:', err && err.message);
+            });
+        }
     }
 }
 
-function onPosition(pos) { handleLocationUpdate({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy, speedMs: pos.coords.speed, time: Date.now() }); }
-function onPositionError(err) { setGpsStatus('off', 'Sinyal GPS lemah'); showToast('GPS error: ' + (err.message || 'tidak dapat mengambil lokasi')); }
+function onPosition(pos) {
+    console.log('[GPS App] Posisi dari navigator.geolocation:', pos.coords.latitude, pos.coords.longitude);
+    handleLocationUpdate({
+        lat: pos.coords.latitude, lng: pos.coords.longitude,
+        accuracy: pos.coords.accuracy, speedMs: pos.coords.speed, time: Date.now()
+    });
+}
+
+function onPositionError(err) {
+    setGpsStatus('off', 'Sinyal GPS lemah');
+    showToast('GPS error: ' + (err.message || 'tidak dapat mengambil lokasi'));
+    console.error('[GPS App] Geolocation error:', err);
+}
 
 // ---------- HUD ----------
 function updateHud(point) {
@@ -283,8 +454,12 @@ function updateHud(point) {
         if (el.statSpeed) el.statSpeed.textContent = point.speed.toFixed(1);
         if (el.statAccuracy) el.statAccuracy.textContent = point.accuracy ? Math.round(point.accuracy) : '–';
         if (el.statCoords) el.statCoords.textContent = point.lat.toFixed(5) + ', ' + point.lng.toFixed(5);
-    } else { if (el.statSpeed) el.statSpeed.textContent = '0.0'; }
-    if (speedSamples.length && el.statAvgSpeed) el.statAvgSpeed.textContent = (speedSamples.reduce(function (a, b) { return a + b; }, 0) / speedSamples.length).toFixed(1);
+    } else {
+        if (el.statSpeed) el.statSpeed.textContent = '0.0';
+    }
+    if (speedSamples.length && el.statAvgSpeed) {
+        el.statAvgSpeed.textContent = (speedSamples.reduce(function (a, b) { return a + b; }, 0) / speedSamples.length).toFixed(1);
+    }
 }
 
 function updateDuration() {
@@ -314,11 +489,20 @@ function toRad(deg) { return deg * Math.PI / 180; }
 
 function saveTrip() {
     var elapsedMs = Date.now() - startTime - pausedAccumMs;
-    var trip = { id: 'trip_' + Date.now(), user_id: currentSession ? currentSession.user_id : null,
-        date: getLocalISOString(startTime), distanceKm: Number(totalDistanceKm.toFixed(2)),
-        durationMs: elapsedMs, avgSpeedKmh: speedSamples.length ? Number((speedSamples.reduce(function (a, b) { return a + b; }, 0) / speedSamples.length).toFixed(1)) : 0,
-        points: tripPoints.map(function (p) { return [p.lat, p.lng]; }) };
-    TripDB.saveTrip(trip, function () { renderHistory(); showToast('Perjalanan disimpan: ' + trip.distanceKm + ' km'); TripSync.syncNow(); });
+    var trip = {
+        id: 'trip_' + Date.now(),
+        user_id: currentSession ? currentSession.user_id : null,
+        date: getLocalISOString(startTime),
+        distanceKm: Number(totalDistanceKm.toFixed(2)),
+        durationMs: elapsedMs,
+        avgSpeedKmh: speedSamples.length ? Number((speedSamples.reduce(function (a, b) { return a + b; }, 0) / speedSamples.length).toFixed(1)) : 0,
+        points: tripPoints.map(function (p) { return [p.lat, p.lng]; })
+    };
+    TripDB.saveTrip(trip, function () {
+        renderHistory();
+        showToast('Perjalanan disimpan: ' + trip.distanceKm + ' km');
+        TripSync.syncNow();
+    });
 }
 
 function deleteTrip(id) { TripDB.deleteTrip(id, function () { renderHistory(); }); }
@@ -351,11 +535,12 @@ function showTripOnMap(trip) {
     map.fitBounds(trailPolyline.getBounds(), { padding: [40, 40] });
 }
 
-// ---------- Logout ----------
 function doLogout() {
     if (tripState !== 'idle') stopTrip();
     TripDB.clearSession(function () {
-        currentSession = null; appEntered = false; controlsBound = false;
+        currentSession = null;
+        appEntered = false;
+        controlsBound = false;
         if (el.currentUser) el.currentUser.textContent = 'Guest';
         el.authOverlay.hidden = false;
         el.authUsername.value = ''; el.authPassword.value = ''; el.authError.hidden = true;
@@ -374,7 +559,11 @@ function doLogout() {
 
 var toastTimer = null;
 function showToast(msg) {
-    if (el.toast) { el.toast.textContent = msg; el.toast.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(function () { el.toast.hidden = true; }, 3000); }
+    if (el.toast) {
+        el.toast.textContent = msg; el.toast.hidden = false;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { el.toast.hidden = true; }, 3000);
+    }
 }
 
 })();
