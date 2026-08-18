@@ -8,7 +8,7 @@
 (function (global) {
     'use strict';
 
-    var API_BASE_URL = 'http://10.83.49.107/cordova/gps-tracker/server'; // 10.0.2.2 = alamat localhost dari emulator Android
+    var API_BASE_URL = 'https://10.83.49.107/cordova/gps-tracker/server'; // 10.0.2.2 = alamat localhost dari emulator Android
 
     function setBaseUrl(url) { API_BASE_URL = url.replace(/\/$/, ''); }
     function getBaseUrl() { return API_BASE_URL; }
