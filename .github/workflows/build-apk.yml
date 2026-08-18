@@ -26,11 +26,14 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Install SDK Platform 36 & Build Tools (dibutuhkan cordova-android 15)
+        run: yes | sdkmanager "platforms;android-36" "build-tools;36.0.0" --sdk_root="$ANDROID_HOME" || yes | sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
       - name: Install Cordova CLI
         run: npm install -g cordova
 
       - name: Tambahkan platform Android
-        run: cordova platform add android
+        run: cordova platform add android@15.1.0
 
       - name: Build APK (debug, tidak perlu signing)
         run: cordova build android --debug
