@@ -5,89 +5,54 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="Content-Security-Policy" content="default-src * 'self' 'unsafe-inline' 'unsafe-eval' data: gap: cdvfile:; style-src * 'unsafe-inline'; media-src *;">
     <title>GPS Trip Monitor</title>
-    
-    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
-    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-    
-    <!-- CSS Lokal -->
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <!-- Peta -->
     <div id="map"></div>
 
-    <!-- Top Bar -->
     <div class="topbar">
         <div class="brand">
             <div class="brand-dot"></div>
             <div class="brand-text">GPS TRIP MONITOR</div>
         </div>
-        
-        <!-- Wrapper Kanan: Status GPS, Nama User, Logout -->
         <div class="topbar-right">
             <div class="status-pill">
                 <div id="gpsStatusDot" class="status-dot"></div>
                 <span id="gpsStatusText">Mencari sinyal…</span>
             </div>
-            <!-- Badge Nama User -->
-            <div class="user-pill">
-                 <span id="currentUser">Guest</span>
-            </div>
+            <div class="user-pill"><span id="currentUser">Guest</span></div>
             <button id="btnLogout" class="btn-logout" title="Keluar">Keluar</button>
         </div>
     </div>
 
-    <!-- Status Sinkronisasi -->
     <div class="sync-pill">
         <div id="syncDot" class="sync-dot"></div>
         <span id="syncText">Offline</span>
     </div>
 
-    <!-- HUD (Heads-Up Display) -->
     <div class="hud">
         <div class="hud-row">
-            <div class="hud-stat">
-                <div class="hud-label">Kecepatan</div>
-                <div class="hud-value"><span id="statSpeed">0.0</span><small>km/j</small></div>
-            </div>
-            <div class="hud-stat">
-                <div class="hud-label">Jarak</div>
-                <div class="hud-value"><span id="statDistance">0.00</span><small>km</small></div>
-            </div>
-            <div class="hud-stat">
-                <div class="hud-label">Durasi</div>
-                <div class="hud-value"><span id="statDuration">00:00:00</span></div>
-            </div>
+            <div class="hud-stat"><div class="hud-label">Kecepatan</div><div class="hud-value"><span id="statSpeed">0.0</span><small>km/j</small></div></div>
+            <div class="hud-stat"><div class="hud-label">Jarak</div><div class="hud-value"><span id="statDistance">0.00</span><small>km</small></div></div>
+            <div class="hud-stat"><div class="hud-label">Durasi</div><div class="hud-value"><span id="statDuration">00:00:00</span></div></div>
         </div>
         <div class="hud-row hud-row-secondary">
-            <div class="hud-stat-sm">
-                <div class="hud-label">Kec. Rata-rata</div>
-                <div class="hud-value-sm"><span id="statAvgSpeed">0.0</span> km/j</div>
-            </div>
-            <div class="hud-stat-sm">
-                <div class="hud-label">Akurasi</div>
-                <div class="hud-value-sm"><span id="statAccuracy">–</span> m</div>
-            </div>
-            <div class="hud-stat-sm">
-                <div class="hud-label">Koordinat</div>
-                <div class="hud-value-sm"><span id="statCoords">–</span>, <span>–</span></div>
-            </div>
+            <div class="hud-stat-sm"><div class="hud-label">Kec. Rata-rata</div><div class="hud-value-sm"><span id="statAvgSpeed">0.0</span> km/j</div></div>
+            <div class="hud-stat-sm"><div class="hud-label">Akurasi</div><div class="hud-value-sm"><span id="statAccuracy">–</span> m</div></div>
+            <div class="hud-stat-sm"><div class="hud-label">Koordinat</div><div class="hud-value-sm"><span id="statCoords">–</span>, <span>–</span></div></div>
         </div>
     </div>
 
-    <!-- Controls -->
     <div class="controls">
         <button id="btnCenter" class="btn btn-ghost" title="Pusatkan peta">⊕</button>
         <button id="btnStart" class="btn btn-primary">Mulai Perjalanan</button>
         <button id="btnPause" class="btn btn-secondary" hidden>Jeda</button>
         <button id="btnStop" class="btn btn-danger" hidden>Selesai</button>
-        <button id="btnHistory" class="btn btn-ghost" title="Riwayat"></button>
+        <button id="btnHistory" class="btn btn-ghost" title="Riwayat">📋</button>
     </div>
 
-    <!-- History Overlay -->
     <div id="historyOverlay" class="overlay" hidden>
         <div class="panel">
             <div class="panel-header">
@@ -100,7 +65,6 @@
         </div>
     </div>
 
-    <!-- Auth Overlay (Login/Register) -->
     <div id="authOverlay" class="overlay auth-overlay" hidden>
         <div class="auth-panel">
             <div class="auth-brand">
@@ -109,26 +73,20 @@
             </div>
             <h2 id="authTitle">Masuk ke akun Anda</h2>
             <p class="auth-sub">Data perjalanan tersimpan otomatis, lalu diunggah ke server saat internet tersambung.</p>
-            
             <label class="auth-label" for="authUsername">Username</label>
             <input id="authUsername" class="auth-input" type="text" autocomplete="username">
-            
             <label class="auth-label" for="authPassword">Password</label>
             <input id="authPassword" class="auth-input" type="password" autocomplete="current-password">
-            
             <div id="authError" class="auth-error" hidden></div>
-            
             <button id="btnAuthSubmit" class="btn btn-primary auth-submit">Masuk</button>
             <button id="btnAuthToggle" class="btn-link">Belum punya akun? Daftar di sini</button>
         </div>
     </div>
 
-    <!-- Toast Notification -->
     <div id="toast" class="toast" hidden></div>
 
-    <!-- Scripts - URUTAN PENTING! -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-	  <script src="cordova.js"></script>
+	<script src="cordova.js"></script>
     <script src="js/db.js"></script>
     <script src="js/sync.js"></script>
     <script src="js/api.js"></script>
