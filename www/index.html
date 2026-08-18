@@ -2,81 +2,92 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-    <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self' data: gap:; style-src 'self' 'unsafe-inline' https://unpkg.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://unpkg.com; connect-src 'self' https://*.tile.openstreetmap.org http://* https://*;">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'self' 'unsafe-inline' 'unsafe-eval' data: gap: cdvfile:; style-src * 'unsafe-inline'; media-src *;">
     <title>GPS Trip Monitor</title>
-
+    
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="css/style.css" />
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- CSS Lokal -->
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-
+    <!-- Peta -->
     <div id="map"></div>
 
-    <!-- Top bar -->
-    <header class="topbar">
+    <!-- Top Bar -->
+    <div class="topbar">
         <div class="brand">
-            <span class="brand-dot"></span>
-            <span class="brand-text">GPS TRIP MONITOR</span>
+            <div class="brand-dot"></div>
+            <div class="brand-text">GPS TRIP MONITOR</div>
         </div>
-        <div class="status-pill" id="gpsStatus">
-            <span class="status-dot" id="gpsStatusDot"></span>
-            <span id="gpsStatusText">Mencari sinyal…</span>
+        
+        <!-- Wrapper Kanan: Status GPS, Nama User, Logout -->
+        <div class="topbar-right">
+            <div class="status-pill">
+                <div id="gpsStatusDot" class="status-dot"></div>
+                <span id="gpsStatusText">Mencari sinyal…</span>
+            </div>
+            <!-- Badge Nama User -->
+            <div class="user-pill">
+                 <span id="currentUser">Guest</span>
+            </div>
+            <button id="btnLogout" class="btn-logout" title="Keluar">Keluar</button>
         </div>
-    </header>
+    </div>
 
-    <div class="sync-pill" id="syncPill">
-        <span class="sync-dot" id="syncDot"></span>
+    <!-- Status Sinkronisasi -->
+    <div class="sync-pill">
+        <div id="syncDot" class="sync-dot"></div>
         <span id="syncText">Offline</span>
     </div>
 
-    <!-- Instrument HUD -->
-    <section class="hud" id="hud">
+    <!-- HUD (Heads-Up Display) -->
+    <div class="hud">
         <div class="hud-row">
             <div class="hud-stat">
-                <span class="hud-label">Kecepatan</span>
-                <span class="hud-value"><span id="statSpeed">0.0</span><small>km/j</small></span>
+                <div class="hud-label">Kecepatan</div>
+                <div class="hud-value"><span id="statSpeed">0.0</span><small>km/j</small></div>
             </div>
             <div class="hud-stat">
-                <span class="hud-label">Jarak</span>
-                <span class="hud-value"><span id="statDistance">0.00</span><small>km</small></span>
+                <div class="hud-label">Jarak</div>
+                <div class="hud-value"><span id="statDistance">0.00</span><small>km</small></div>
             </div>
             <div class="hud-stat">
-                <span class="hud-label">Durasi</span>
-                <span class="hud-value"><span id="statDuration">00:00:00</span></span>
+                <div class="hud-label">Durasi</div>
+                <div class="hud-value"><span id="statDuration">00:00:00</span></div>
             </div>
         </div>
         <div class="hud-row hud-row-secondary">
             <div class="hud-stat-sm">
-                <span class="hud-label">Kec. Rata-rata</span>
-                <span class="hud-value-sm"><span id="statAvgSpeed">0.0</span> km/j</span>
+                <div class="hud-label">Kec. Rata-rata</div>
+                <div class="hud-value-sm"><span id="statAvgSpeed">0.0</span> km/j</div>
             </div>
             <div class="hud-stat-sm">
-                <span class="hud-label">Akurasi</span>
-                <span class="hud-value-sm"><span id="statAccuracy">–</span> m</span>
+                <div class="hud-label">Akurasi</div>
+                <div class="hud-value-sm"><span id="statAccuracy">–</span> m</div>
             </div>
             <div class="hud-stat-sm">
-                <span class="hud-label">Koordinat</span>
-                <span class="hud-value-sm" id="statCoords">– , –</span>
+                <div class="hud-label">Koordinat</div>
+                <div class="hud-value-sm"><span id="statCoords">–</span>, <span>–</span></div>
             </div>
         </div>
-    </section>
+    </div>
 
     <!-- Controls -->
-    <footer class="controls">
-        <button id="btnHistory" class="btn btn-ghost" aria-label="Riwayat perjalanan">
-            <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M13 3a9 9 0 1 0 9 9h-2a7 7 0 1 1-2.05-4.95L15 10h6V4l-2.35 2.35A8.96 8.96 0 0 0 13 3zm-1 5v5l4.25 2.52.75-1.23-3.5-2.08V8z"/></svg>
-        </button>
+    <div class="controls">
+        <button id="btnCenter" class="btn btn-ghost" title="Pusatkan peta">⊕</button>
         <button id="btnStart" class="btn btn-primary">Mulai Perjalanan</button>
         <button id="btnPause" class="btn btn-secondary" hidden>Jeda</button>
         <button id="btnStop" class="btn btn-danger" hidden>Selesai</button>
-        <button id="btnCenter" class="btn btn-ghost" aria-label="Pusatkan peta">
-            <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12 2a1 1 0 0 1 1 1v2.06A7.002 7.002 0 0 1 18.94 11H21a1 1 0 1 1 0 2h-2.06A7.002 7.002 0 0 1 13 18.94V21a1 1 0 1 1-2 0v-2.06A7.002 7.002 0 0 1 5.06 13H3a1 1 0 1 1 0-2h2.06A7.002 7.002 0 0 1 11 5.06V3a1 1 0 0 1 1-1zm0 5a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0 3a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/></svg>
-        </button>
-    </footer>
+        <button id="btnHistory" class="btn btn-ghost" title="Riwayat"></button>
+    </div>
 
-    <!-- History panel -->
+    <!-- History Overlay -->
     <div id="historyOverlay" class="overlay" hidden>
         <div class="panel">
             <div class="panel-header">
@@ -89,37 +100,38 @@
         </div>
     </div>
 
-    <!-- Login / Daftar (wajib sebelum bisa memakai aplikasi) -->
-    <div id="authOverlay" class="overlay auth-overlay">
-        <div class="panel auth-panel">
+    <!-- Auth Overlay (Login/Register) -->
+    <div id="authOverlay" class="overlay auth-overlay" hidden>
+        <div class="auth-panel">
             <div class="auth-brand">
-                <span class="brand-dot"></span>
-                <span class="brand-text">GPS TRIP MONITOR</span>
+                <div class="brand-dot"></div>
+                <div class="brand-text">GPS TRIP MONITOR</div>
             </div>
             <h2 id="authTitle">Masuk ke akun Anda</h2>
             <p class="auth-sub">Data perjalanan tersimpan otomatis, lalu diunggah ke server saat internet tersambung.</p>
-
-            <label class="auth-label">Username</label>
-            <input id="authUsername" class="auth-input" type="text" autocomplete="username" placeholder="cth: budi123" />
-
-            <label class="auth-label">Password</label>
-            <input id="authPassword" class="auth-input" type="password" autocomplete="current-password" placeholder="••••••••" />
-
-            <p id="authError" class="auth-error" hidden></p>
-
+            
+            <label class="auth-label" for="authUsername">Username</label>
+            <input id="authUsername" class="auth-input" type="text" autocomplete="username">
+            
+            <label class="auth-label" for="authPassword">Password</label>
+            <input id="authPassword" class="auth-input" type="password" autocomplete="current-password">
+            
+            <div id="authError" class="auth-error" hidden></div>
+            
             <button id="btnAuthSubmit" class="btn btn-primary auth-submit">Masuk</button>
             <button id="btnAuthToggle" class="btn-link">Belum punya akun? Daftar di sini</button>
         </div>
     </div>
 
-    <!-- Permission / error toast -->
+    <!-- Toast Notification -->
     <div id="toast" class="toast" hidden></div>
 
+    <!-- Scripts - URUTAN PENTING! -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="cordova.js"></script>
+	  <script src="cordova.js"></script>
     <script src="js/db.js"></script>
-    <script src="js/api.js"></script>
     <script src="js/sync.js"></script>
+    <script src="js/api.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
