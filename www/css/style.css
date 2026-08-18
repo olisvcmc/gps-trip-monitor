@@ -12,7 +12,7 @@
     --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* PERBAIKAN PENTING: Tambahkan tanda * (universal selector) */
+/* PERBAIKAN PENTING: Menambahkan tanda bintang (*) agar valid */
 * { box-sizing: border-box; }
 
 /* PENTING: pastikan atribut hidden SELALU menang atas aturan display lain manapun */
@@ -70,7 +70,7 @@ html, body {
     color: var(--text-dim);
 }
 
-/* TAMBAHAN: Wrapper untuk item di sebelah kanan topbar */
+/* TAMBAHAN: Wrapper untuk item di sebelah kanan topbar (Status, User, Logout) */
 .topbar-right {
     display: flex;
     align-items: center;
@@ -79,6 +79,7 @@ html, body {
 }
 
 .status-pill {
+    pointer-events: auto;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -132,26 +133,26 @@ html, body {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
+    pointer-events: auto;
 }
 .btn-logout:active { transform: scale(0.95); background: rgba(255, 77, 94, 0.3); }
 
 /* ===== Sync status pill ===== */
 .sync-pill {
     position: absolute;
-    top: 70px; /* Posisi di bawah topbar agar tidak tertutup */
+    top: calc(env(safe-area-inset-top, 12px) + 48px);
     right: 12px;
-    z-index: 15; /* Pastikan terlihat di atas elemen lain */
+    z-index: 10;
     display: flex;
     align-items: center;
     gap: 6px;
-    background: rgba(16,22,31,0.9);
+    background: rgba(16,22,31,0.85);
     border: 1px solid var(--panel-border);
     border-radius: 20px;
-    padding: 6px 12px;
+    padding: 5px 10px;
     font-size: 11px;
     color: var(--text-dim);
     backdrop-filter: blur(8px);
-    pointer-events: auto;
 }
 
 .sync-dot {
