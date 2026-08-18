@@ -12,10 +12,10 @@
     --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* PERBAIKAN: Tambahkan tanda * (universal selector) */
+/* PERBAIKAN PENTING: Tambahkan tanda * (universal selector) */
 * { box-sizing: border-box; }
 
-/* PENTING: pastikan atribut hidden SELALU menang atas aturan display lain */
+/* PENTING: pastikan atribut hidden SELALU menang atas aturan display lain manapun */
 [hidden] {
     display: none !important;
 }
@@ -40,7 +40,7 @@ html, body {
     filter: saturate(0.85) brightness(0.9);
 }
 
-/* Dark tile filter overlay */
+/* Dark tile filter overlay to keep the map in the studio's dark palette */
 .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9); }
 .leaflet-marker-icon, .leaflet-popup { filter: invert(1) hue-rotate(180deg); }
 
@@ -70,7 +70,7 @@ html, body {
     color: var(--text-dim);
 }
 
-/* Wrapper untuk item di sebelah kanan topbar */
+/* TAMBAHAN: Wrapper untuk item di sebelah kanan topbar */
 .topbar-right {
     display: flex;
     align-items: center;
@@ -107,7 +107,7 @@ html, body {
     50% { opacity: 0.4; }
 }
 
-/* Badge Nama User */
+/* TAMBAHAN: Badge Nama User */
 .user-pill {
     background: rgba(123, 97, 255, 0.15);
     border: 1px solid rgba(123, 97, 255, 0.3);
@@ -121,7 +121,7 @@ html, body {
     gap: 4px;
 }
 
-/* Tombol Logout */
+/* TAMBAHAN: Tombol Logout */
 .btn-logout {
     background: rgba(255, 77, 94, 0.15);
     border: 1px solid rgba(255, 77, 94, 0.3);
@@ -138,7 +138,7 @@ html, body {
 /* ===== Sync status pill ===== */
 .sync-pill {
     position: absolute;
-    top: 70px; /* Posisi di bawah topbar */
+    top: 70px; /* Posisi di bawah topbar agar tidak tertutup */
     right: 12px;
     z-index: 15; /* Pastikan terlihat di atas elemen lain */
     display: flex;
@@ -173,6 +173,7 @@ html, body {
 .auth-panel {
     width: 100%;
     max-width: 380px;
+    max-height: none;
     border-radius: 22px;
     border: 1px solid var(--panel-border);
     padding: 28px 22px;
@@ -204,8 +205,13 @@ html, body {
 }
 .auth-input:focus { border-color: var(--aurora-1); }
 
-.auth-error { color: var(--danger); font-size: 13px; margin: 12px 0 0; }
-.auth-submit { width: 100%; margin-top: 20px; }
+.auth-error {
+    color: var(--danger);
+    font-size: 13px;
+    margin: 12px 0 0;
+}
+
+.auth-submit { width: 100%; max-width: none; margin-top: 20px; }
 
 .btn-link {
     display: block;
@@ -232,8 +238,17 @@ html, body {
     box-shadow: 0 8px 30px rgba(0,0,0,0.4);
 }
 
-.hud-row { display: flex; justify-content: space-between; }
-.hud-row-secondary { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--panel-border); }
+.hud-row {
+    display: flex;
+    justify-content: space-between;
+}
+
+.hud-row-secondary {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--panel-border);
+}
+
 .hud-stat { display: flex; flex-direction: column; gap: 2px; }
 
 .hud-label {
@@ -261,7 +276,12 @@ html, body {
 }
 
 .hud-stat-sm { display: flex; flex-direction: column; gap: 2px; }
-.hud-value-sm { font-family: var(--font-display); font-size: 13px; color: var(--text); }
+
+.hud-value-sm {
+    font-family: var(--font-display);
+    font-size: 13px;
+    color: var(--text);
+}
 
 /* ===== Controls ===== */
 .controls {
@@ -284,7 +304,7 @@ html, body {
     font-size: 15px;
     padding: 14px 22px;
     cursor: pointer;
-    transition: transform 0.15s ease;
+    transition: transform 0.15s ease, opacity 0.15s ease;
 }
 .btn:active { transform: scale(0.96); }
 
@@ -296,8 +316,18 @@ html, body {
     max-width: 220px;
 }
 
-.btn-secondary { background: rgba(255,255,255,0.08); color: var(--text); border: 1px solid var(--panel-border); }
-.btn-danger { background: var(--danger); color: #1a0508; box-shadow: 0 6px 18px rgba(255,77,94,0.35); }
+.btn-secondary {
+    background: rgba(255,255,255,0.08);
+    color: var(--text);
+    border: 1px solid var(--panel-border);
+}
+
+.btn-danger {
+    background: var(--danger);
+    color: #1a0508;
+    box-shadow: 0 6px 18px rgba(255,77,94,0.35);
+}
+
 .btn-ghost {
     background: rgba(16,22,31,0.85);
     border: 1px solid var(--panel-border);
@@ -315,6 +345,7 @@ html, body {
     box-shadow: 0 0 0 4px rgba(0,217,192,0.25), 0 0 14px var(--aurora-1);
     position: relative;
 }
+
 .trip-marker::after {
     content: '';
     position: absolute;
@@ -324,6 +355,7 @@ html, body {
     opacity: 0.6;
     animation: radar-ping 1.8s ease-out infinite;
 }
+
 @keyframes radar-ping {
     0% { transform: scale(0.5); opacity: 0.7; }
     100% { transform: scale(2.2); opacity: 0; }
@@ -350,8 +382,18 @@ html, body {
     overflow-y: auto;
 }
 
-.panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.panel-header h2 { font-size: 16px; margin: 0; letter-spacing: 0.5px; }
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.panel-header h2 {
+    font-size: 16px;
+    margin: 0;
+    letter-spacing: 0.5px;
+}
 
 .btn-icon {
     background: rgba(255,255,255,0.08);
