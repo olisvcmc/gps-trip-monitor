@@ -18,10 +18,11 @@ var speedSamples = [];
 var currentSession = null;
 var authMode = 'login';
 
-// Flag untuk mencegah inisialisasi ganda & menangani siklus login/logout
+// Flag untuk mencegah inisialisasi ganda
 var isBooted = false;
 var appEntered = false;
 var controlsBound = false;
+var lastLivePing = 0;
 
 // ---------- DOM ----------
 var el = {
@@ -55,6 +56,13 @@ var el = {
     currentUser: document.getElementById('currentUser')
 };
 
+// ---------- Helper: Waktu Lokal ----------
+function getLocalISOString(date) {
+    var d = (typeof date === 'number') ? new Date(date) : date;
+    var tzoffset = d.getTimezoneOffset() * 60000;
+    return (new Date(d - tzoffset)).toISOString().slice(0, -1);
+}
+
 // ---------- Init ----------
 function boot() {
     if (isBooted) return;
@@ -83,13 +91,11 @@ function enterApp() {
     appEntered = true;
 
     el.authOverlay.hidden = true;
-    
-    // Tampilkan nama user yang login
+
     if (el.currentUser && currentSession) {
         el.currentUser.textContent = currentSession.username;
     }
 
-    // Bind controls hanya sekali
     if (!controlsBound) {
         bindControls();
         controlsBound = true;
@@ -97,13 +103,13 @@ function enterApp() {
 
     initMap();
     renderHistory();
-    
+
     if (window.BackgroundGeolocation) {
         hasBgPlugin = true;
         bgGeo = window.BackgroundGeolocation;
     }
     TripSync.init(updateSyncUI);
-    
+
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             function (pos) {
@@ -125,25 +131,31 @@ function enterApp() {
 
 // ---------- Auth ----------
 function bindAuthControls() {
-    // Clone node untuk mencegah duplicate event listener
-    var newSubmitBtn = el.btnAuthSubmit.cloneNode(true);
-    el.btnAuthSubmit.parentNode.replaceChild(newSubmitBtn, el.btnAuthSubmit);
-    el.btnAuthSubmit = newSubmitBtn;
-    
-    var newToggleBtn = el.btnAuthToggle.cloneNode(true);
-    el.btnAuthToggle.parentNode.replaceChild(newToggleBtn, el.btnAuthToggle);
-    el.btnAuthToggle = newToggleBtn;
+    if (el.btnAuthSubmit && el.btnAuthSubmit.parentNode) {
+        var newSubmitBtn = el.btnAuthSubmit.cloneNode(true);
+        el.btnAuthSubmit.parentNode.replaceChild(newSubmitBtn, el.btnAuthSubmit);
+        el.btnAuthSubmit = newSubmitBtn;
+    }
+    if (el.btnAuthToggle && el.btnAuthToggle.parentNode) {
+        var newToggleBtn = el.btnAuthToggle.cloneNode(true);
+        el.btnAuthToggle.parentNode.replaceChild(newToggleBtn, el.btnAuthToggle);
+        el.btnAuthToggle = newToggleBtn;
+    }
 
-    el.btnAuthSubmit.addEventListener('click', submitAuth);
-    el.btnAuthToggle.addEventListener('click', function () {
-        authMode = authMode === 'login' ? 'register' : 'login';
-        el.authTitle.textContent = authMode === 'login' ? 'Masuk ke akun Anda' : 'Buat akun baru';
-        el.btnAuthSubmit.textContent = authMode === 'login' ? 'Masuk' : 'Daftar';
-        el.btnAuthToggle.textContent = authMode === 'login'
-            ? 'Belum punya akun? Daftar di sini'
-            : 'Sudah punya akun? Masuk di sini';
-        el.authError.hidden = true;
-    });
+    if (el.btnAuthSubmit) {
+        el.btnAuthSubmit.addEventListener('click', submitAuth);
+    }
+    if (el.btnAuthToggle) {
+        el.btnAuthToggle.addEventListener('click', function () {
+            authMode = authMode === 'login' ? 'register' : 'login';
+            el.authTitle.textContent = authMode === 'login' ? 'Masuk ke akun Anda' : 'Buat akun baru';
+            el.btnAuthSubmit.textContent = authMode === 'login' ? 'Masuk' : 'Daftar';
+            el.btnAuthToggle.textContent = authMode === 'login'
+                ? 'Belum punya akun? Daftar di sini'
+                : 'Sudah punya akun? Masuk di sini';
+            el.authError.hidden = true;
+        });
+    }
 }
 
 function submitAuth() {
@@ -155,9 +167,7 @@ function submitAuth() {
     }
     el.btnAuthSubmit.disabled = true;
     el.btnAuthSubmit.textContent = authMode === 'login' ? 'Memproses…' : 'Mendaftarkan…';
-    
     var call = authMode === 'login' ? TripAPI.login(username, password) : TripAPI.register(username, password);
-    
     call.then(function (data) {
         currentSession = {
             user_id: data.user_id,
@@ -241,10 +251,11 @@ function setupBackgroundGeolocation(onReady) {
 
 // ---------- Map ----------
 function initMap() {
-    // Hapus map lama jika ada (mencegah error "container already initialized")
     if (map) {
-        map.remove();
+        try { map.remove(); } catch (e) {}
         map = null;
+        currentMarker = null;
+        trailPolyline = null;
     }
 
     map = L.map('map', { zoomControl: false, attributionControl: false }).setView([-6.2, 106.816666], 13);
@@ -255,17 +266,9 @@ function initMap() {
 }
 
 function bindControls() {
-    // Tambahkan pengecekan (if) agar aplikasi tidak crash jika ada tombol yang hilang di HTML
     if (el.btnStart) el.btnStart.addEventListener('click', startTrip);
     if (el.btnPause) el.btnPause.addEventListener('click', togglePause);
-    
-    // PERBAIKAN: Cek apakah btnStop ada sebelum menambahkan event
-    if (el.btnStop) {
-        el.btnStop.addEventListener('click', stopTrip);
-    } else {
-        console.error('Tombol btnStop tidak ditemukan di index.html!');
-    }
-
+    if (el.btnStop) el.btnStop.addEventListener('click', stopTrip);
     if (el.btnCenter) {
         el.btnCenter.addEventListener('click', function () {
             if (tripPoints.length && map) {
@@ -276,7 +279,6 @@ function bindControls() {
     }
     if (el.btnHistory) el.btnHistory.addEventListener('click', function () { el.historyOverlay.hidden = false; });
     if (el.btnCloseHistory) el.btnCloseHistory.addEventListener('click', function () { el.historyOverlay.hidden = true; });
-    
     if (el.btnLogout) el.btnLogout.addEventListener('click', doLogout);
 }
 
@@ -285,7 +287,8 @@ function startTrip() {
     if (!navigator.geolocation) { showToast('GPS tidak didukung.'); return; }
     tripState = 'tracking';
     tripPoints = []; speedSamples = []; totalDistanceKm = 0; pausedAccumMs = 0;
-    startTime = Date.now(); // Simpan waktu mulai
+    lastLivePing = 0;
+    startTime = Date.now();
     if (trailPolyline) trailPolyline.setLatLngs([]);
     updateHud();
     el.btnStart.hidden = true; el.btnPause.hidden = false; el.btnPause.textContent = 'Jeda'; el.btnStop.hidden = false;
@@ -313,85 +316,92 @@ function togglePause() {
 }
 
 function stopTrip() {
-    console.log('Tombol Selesai ditekan. Jumlah titik:', tripPoints.length);
-
-    // 1. Hentikan Background Geolocation dengan aman (try-catch)
     try {
-        if (hasBgPlugin && bgGeo && bgGeoConfigured) {
-            bgGeo.stop();
-        }
-    } catch (e) {
-        console.warn('Gagal menghentikan bgGeo:', e);
-    }
+        if (hasBgPlugin && bgGeo && bgGeoConfigured) bgGeo.stop();
+    } catch (e) { console.warn('Gagal menghentikan bgGeo:', e); }
 
-    // 2. Hentikan Foreground Geolocation
-    if (watchId !== null) {
-        navigator.geolocation.clearWatch(watchId);
-        watchId = null;
-    }
+    if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+    if (durationTimer) { clearInterval(durationTimer); durationTimer = null; }
 
-    // 3. Hentikan Timer Durasi
-    if (durationTimer) { 
-        clearInterval(durationTimer); 
-        durationTimer = null; 
-    }
-
-    // 4. RESET UI LANGSUNG (Wajib dilakukan di awal agar tombol tidak macet)
     tripState = 'idle';
-    el.btnStart.hidden = false;
-    el.btnPause.hidden = true;
-    el.btnStop.hidden = true;
+    el.btnStart.hidden = false; el.btnPause.hidden = true; el.btnStop.hidden = true;
     setGpsStatus('ready', 'Siap');
 
-    // 5. Simpan Trip (Hanya jika titik > 1)
     if (tripPoints.length > 1) {
         saveTrip();
     } else {
         showToast('Perjalanan terlalu pendek, tidak disimpan.');
-        // Reset data karena tidak jadi disimpan
-        tripPoints = [];
-        totalDistanceKm = 0;
-        speedSamples = [];
+        tripPoints = []; totalDistanceKm = 0; speedSamples = [];
         if (trailPolyline) trailPolyline.setLatLngs([]);
         updateHud();
     }
 }
 
+// ---------- Geolocation callbacks ----------
 function handleLocationUpdate(data) {
     if (tripState !== 'tracking') return;
+
     var lat = data.lat, lng = data.lng, accuracy = data.accuracy, speedMs = data.speedMs;
     var prev = tripPoints[tripPoints.length - 1];
     var point = { lat: lat, lng: lng, t: data.time || Date.now(), accuracy: accuracy };
+
     if (prev) {
         var segKm = haversineKm(prev.lat, prev.lng, lat, lng);
         if (segKm * 1000 > Math.max(4, (accuracy || 10) * 0.5)) totalDistanceKm += segKm;
     }
+
     var speedKmh = (speedMs !== null && speedMs >= 0) ? speedMs * 3.6 : (prev ? haversineKm(prev.lat, prev.lng, lat, lng) / ((point.t - prev.t) / 3600000) : 0);
     point.speed = speedKmh; speedSamples.push(speedKmh); tripPoints.push(point);
+
     if (trailPolyline) trailPolyline.addLatLng([lat, lng]);
     if (currentMarker) currentMarker.setLatLng([lat, lng]);
     if (map) map.panTo([lat, lng], { animate: true });
     updateHud(point);
+
+    // Live ping ke server setiap 10 detik
+    if (currentSession && currentSession.token && typeof TripAPI.updateLocation === 'function') {
+        var now = Date.now();
+        if (now - lastLivePing > 10000) {
+            lastLivePing = now;
+            TripAPI.updateLocation(lat, lng, currentSession.token).catch(function (err) {
+                console.warn('Gagal ping lokasi:', err && err.message);
+            });
+        }
+    }
 }
 
-function onPosition(pos) { handleLocationUpdate({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy, speedMs: pos.coords.speed, time: Date.now() }); }
-function onPositionError(err) { setGpsStatus('off', 'Sinyal GPS lemah'); }
+function onPosition(pos) {
+    handleLocationUpdate({
+        lat: pos.coords.latitude, lng: pos.coords.longitude,
+        accuracy: pos.coords.accuracy, speedMs: pos.coords.speed, time: Date.now()
+    });
+}
 
+function onPositionError(err) {
+    setGpsStatus('off', 'Sinyal GPS lemah');
+    showToast('GPS error: ' + (err.message || 'tidak dapat mengambil lokasi'));
+}
+
+// ---------- HUD ----------
 function updateHud(point) {
-    el.statDistance.textContent = totalDistanceKm.toFixed(2);
+    if (el.statDistance) el.statDistance.textContent = totalDistanceKm.toFixed(2);
     if (point) {
-        el.statSpeed.textContent = point.speed.toFixed(1);
-        el.statAccuracy.textContent = point.accuracy ? Math.round(point.accuracy) : '–';
-        el.statCoords.textContent = point.lat.toFixed(5) + ', ' + point.lng.toFixed(5);
-    } else el.statSpeed.textContent = '0.0';
-    if (speedSamples.length) el.statAvgSpeed.textContent = (speedSamples.reduce(function (a, b) { return a + b; }, 0) / speedSamples.length).toFixed(1);
+        if (el.statSpeed) el.statSpeed.textContent = point.speed.toFixed(1);
+        if (el.statAccuracy) el.statAccuracy.textContent = point.accuracy ? Math.round(point.accuracy) : '–';
+        if (el.statCoords) el.statCoords.textContent = point.lat.toFixed(5) + ', ' + point.lng.toFixed(5);
+    } else {
+        if (el.statSpeed) el.statSpeed.textContent = '0.0';
+    }
+    if (speedSamples.length && el.statAvgSpeed) {
+        el.statAvgSpeed.textContent = (speedSamples.reduce(function (a, b) { return a + b; }, 0) / speedSamples.length).toFixed(1);
+    }
 }
 
 function updateDuration() {
     if (!startTime) return;
     var elapsedMs = Date.now() - startTime - pausedAccumMs;
     if (tripState === 'paused' && lastPauseStart) elapsedMs -= (Date.now() - lastPauseStart);
-    el.statDuration.textContent = formatDuration(elapsedMs);
+    if (el.statDuration) el.statDuration.textContent = formatDuration(elapsedMs);
 }
 
 function formatDuration(ms) {
@@ -401,8 +411,8 @@ function formatDuration(ms) {
 }
 
 function setGpsStatus(kind, text) {
-    el.gpsStatusText.textContent = text;
-    el.gpsStatusDot.className = 'status-dot' + (kind === 'live' ? ' live' : kind === 'off' ? ' off' : '');
+    if (el.gpsStatusText) el.gpsStatusText.textContent = text;
+    if (el.gpsStatusDot) el.gpsStatusDot.className = 'status-dot' + (kind === 'live' ? ' live' : kind === 'off' ? ' off' : '');
 }
 
 function haversineKm(lat1, lon1, lat2, lon2) {
@@ -417,18 +427,12 @@ function saveTrip() {
     var trip = {
         id: 'trip_' + Date.now(),
         user_id: currentSession ? currentSession.user_id : null,
-        
-        // PERBAIKAN: Gunakan getLocalISOString(startTime) agar jam sesuai waktu HP
-        date: getLocalISOString(startTime), 
-        
+        date: getLocalISOString(startTime),
         distanceKm: Number(totalDistanceKm.toFixed(2)),
         durationMs: elapsedMs,
-        avgSpeedKmh: speedSamples.length
-            ? Number((speedSamples.reduce(function (a, b) { return a + b; }, 0) / speedSamples.length).toFixed(1))
-            : 0,
+        avgSpeedKmh: speedSamples.length ? Number((speedSamples.reduce(function (a, b) { return a + b; }, 0) / speedSamples.length).toFixed(1)) : 0,
         points: tripPoints.map(function (p) { return [p.lat, p.lng]; })
     };
-    
     TripDB.saveTrip(trip, function () {
         renderHistory();
         showToast('Perjalanan disimpan: ' + trip.distanceKm + ' km');
@@ -466,54 +470,35 @@ function showTripOnMap(trip) {
     map.fitBounds(trailPolyline.getBounds(), { padding: [40, 40] });
 }
 
-// ---------- LOGOUT ----------
 function doLogout() {
     if (tripState !== 'idle') stopTrip();
-    
     TripDB.clearSession(function () {
         currentSession = null;
-        
-        // Reset flag agar bisa login lagi
-        appEntered = false; 
-        controlsBound = false; 
-        
-        // Reset nama user
+        appEntered = false;
+        controlsBound = false;
         if (el.currentUser) el.currentUser.textContent = 'Guest';
-        
-        // Tampilkan layar login
         el.authOverlay.hidden = false;
-        el.authUsername.value = '';
-        el.authPassword.value = '';
-        el.authError.hidden = true;
-        
-        // Reset UI Dashboard
-        if (map) map.setView([-6.2, 106.816666], 13);
+        el.authUsername.value = ''; el.authPassword.value = ''; el.authError.hidden = true;
+        if (map) try { map.setView([-6.2, 106.816666], 13); } catch (e) {}
         if (trailPolyline) trailPolyline.setLatLngs([]);
-        el.statSpeed.textContent = '0.0'; el.statDistance.textContent = '0.00';
-        el.statDuration.textContent = '00:00:00'; el.statAvgSpeed.textContent = '0.0';
-        el.statAccuracy.textContent = '–'; el.statCoords.textContent = '–, –';
+        if (el.statSpeed) el.statSpeed.textContent = '0.0';
+        if (el.statDistance) el.statDistance.textContent = '0.00';
+        if (el.statDuration) el.statDuration.textContent = '00:00:00';
+        if (el.statAvgSpeed) el.statAvgSpeed.textContent = '0.0';
+        if (el.statAccuracy) el.statAccuracy.textContent = '–';
+        if (el.statCoords) el.statCoords.textContent = '–, –';
         setGpsStatus('ready', 'Mencari sinyal…');
-        
         showToast('Berhasil keluar.');
     });
 }
 
 var toastTimer = null;
 function showToast(msg) {
-    el.toast.textContent = msg; el.toast.hidden = false;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { el.toast.hidden = true; }, 3000);
-}
-
-// Fungsi untuk mengubah waktu menjadi format ISO tapi menggunakan Waktu Lokal (bukan UTC)
-// Fungsi untuk mengubah waktu menjadi format ISO tapi menggunakan Waktu Lokal (bukan UTC)
-// Bisa menerima angka timestamp (Date.now()) ATAU objek Date
-function getLocalISOString(date) {
-    // Jika input adalah angka (timestamp), ubah jadi objek Date dulu
-    var d = (typeof date === 'number') ? new Date(date) : date;
-    
-    var tzoffset = d.getTimezoneOffset() * 60000; // offset dalam milidetik
-    return (new Date(d - tzoffset)).toISOString().slice(0, -1);
+    if (el.toast) {
+        el.toast.textContent = msg; el.toast.hidden = false;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { el.toast.hidden = true; }, 3000);
+    }
 }
 
 })();
