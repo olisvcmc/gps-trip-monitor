@@ -89,6 +89,7 @@
             navigator.geolocation.getCurrentPosition(
                 function (pos) {
                     map.setView([pos.coords.latitude, pos.coords.longitude], 16);
+                    currentMarker.setLatLng([pos.coords.latitude, pos.coords.longitude]);
                     setGpsStatus('ready', 'Siap');
                 },
                 function (err) {
@@ -245,7 +246,7 @@
             lineJoin: 'round'
         }).addTo(map);
 
-        var icon = L.divIcon({ className: '', html: '<div class="trip-marker"></div>', iconSize: [18, 18] });
+        var icon = L.divIcon({ className: '', html: '<div class="trip-marker"></div>', iconSize: [18, 18], iconAnchor: [9, 9] });
         currentMarker = L.marker([-6.2, 106.816666], { icon: icon, zIndexOffset: 1000 }).addTo(map);
     }
 
