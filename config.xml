@@ -1,0 +1,78 @@
+<?xml version='1.0' encoding='utf-8'?>
+<widget id="com.boskita.gpstracker" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+    <name>GPS Trip Monitor</name>
+    <description>
+        Aplikasi monitoring perjalanan real-time menggunakan GPS dan peta Leaflet.
+    </description>
+    <author email="dev@boskita.local" href="https://boskita.local">
+        Bos Kita
+    </author>
+
+    <content src="index.html" />
+
+    <access origin="*" />
+    <allow-intent href="http://*/*" />
+    <allow-intent href="https://*/*" />
+    <allow-navigation href="*" />
+
+    <preference name="DisallowOverscroll" value="true" />
+    <preference name="Orientation" value="portrait" />
+    <preference name="Fullscreen" value="false" />
+    <preference name="android-minSdkVersion" value="24" />
+    <preference name="AndroidXEnabled" value="true" />
+
+    <platform name="android">
+        <allow-intent href="market:*" />
+        <edit-config file="app/src/main/AndroidManifest.xml" mode="merge" target="/manifest/application">
+        </edit-config>
+        <config-file target="AndroidManifest.xml" parent="/manifest">
+            <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+            <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+            <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+            <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+            <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+            <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+            <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+            <uses-permission android:name="android.permission.WAKE_LOCK" />
+        </config-file>
+        <icon density="ldpi" src="res/android/icon-36-ldpi.png" />
+        <icon density="mdpi" src="res/android/icon-48-mdpi.png" />
+        <icon density="hdpi" src="res/android/icon-72-hdpi.png" />
+        <icon density="xhdpi" src="res/android/icon-96-xhdpi.png" />
+    </platform>
+
+    <platform name="ios">
+        <preference name="GPSAlwaysUsageDescription" value="Aplikasi ini butuh akses lokasi untuk memantau perjalanan Anda secara real-time." />
+        <preference name="GPSWhenInUseUsageDescription" value="Aplikasi ini butuh akses lokasi untuk memantau perjalanan Anda secara real-time." />
+        <config-file target="*-Info.plist" parent="NSLocationWhenInUseUsageDescription">
+            <string>Aplikasi ini butuh akses lokasi untuk melacak perjalanan Anda di peta.</string>
+        </config-file>
+        <config-file target="*-Info.plist" parent="NSLocationAlwaysAndWhenInUseUsageDescription">
+            <string>Aplikasi ini butuh akses lokasi latar belakang untuk terus mencatat rute perjalanan.</string>
+        </config-file>
+        <config-file target="*-Info.plist" parent="NSLocationAlwaysUsageDescription">
+            <string>Aplikasi ini butuh akses lokasi latar belakang agar pelacakan perjalanan tetap berjalan saat aplikasi diminimize.</string>
+        </config-file>
+        <config-file target="*-Info.plist" parent="UIBackgroundModes">
+            <array>
+                <string>location</string>
+            </array>
+        </config-file>
+    </platform>
+
+    <plugin name="cordova-plugin-geolocation" spec="^4.1.0" />
+    <plugin name="cordova-plugin-whitelist" spec="^1.3.5" />
+    <plugin name="cordova-plugin-device" spec="^2.1.0" />
+    <plugin name="cordova-plugin-statusbar" spec="^3.0.0" />
+    <!-- Plugin gratis & open-source untuk tracking GPS saat app diminimize/background.
+         Menjalankan foreground service dengan notifikasi persisten (wajib di Android 8+). -->
+    <plugin name="cordova-background-geolocation-lt" spec="^4.10.3" />
+    <!-- Penyimpanan lokal SQLite: data perjalanan tetap tersimpan walau tidak ada internet -->
+    <plugin name="cordova-sqlite-storage" spec="^6.1.0" />
+    <!-- Deteksi status koneksi untuk trigger auto-sync saat internet kembali on -->
+    <plugin name="cordova-plugin-network-information" spec="^3.0.0" />
+
+    <engine name="android" spec=">=10.0.0" />
+    <engine name="ios" spec=">=6.3.0" />
+</widget>
