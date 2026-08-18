@@ -70,23 +70,34 @@
         bindControls();
         renderHistory();
 
+        // Deteksi keberadaan plugin saja di sini (tidak apa-apa, tidak memicu dialog izin).
+        // Konfigurasi & start plugin baru dilakukan lazy di startTrip() — lihat catatan di sana.
         if (window.BackgroundGeolocation) {
             hasBgPlugin = true;
             bgGeo = window.BackgroundGeolocation;
-            setupBackgroundGeolocation();
         }
 
         TripSync.init(updateSyncUI);
 
-        // Coba dapatkan posisi awal supaya peta langsung terpusat
+        // Coba dapatkan posisi awal supaya peta langsung terpusat.
+        // CATATAN: setup plugin background geolocation SENGAJA ditunda sampai
+        // user menekan "Mulai Perjalanan" (lihat startTrip()) — supaya tidak ada
+        // 2 dialog izin lokasi Android muncul berbarengan saat app baru dibuka,
+        // yang bisa bikin salah satu permintaan lokasi macet tanpa pernah
+        // memanggil callback sukses/gagal ("mencari sinyal" selamanya).
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 function (pos) {
                     map.setView([pos.coords.latitude, pos.coords.longitude], 16);
                     setGpsStatus('ready', 'Siap');
                 },
-                function () { setGpsStatus('off', 'GPS tidak tersedia'); },
-                { enableHighAccuracy: true, timeout: 10000 }
+                function (err) {
+                    var msg = 'GPS tidak tersedia';
+                    if (err && err.code === 1) msg = 'Izin lokasi ditolak';
+                    else if (err && err.code === 3) msg = 'Sinyal GPS lambat, coba tombol pusatkan';
+                    setGpsStatus('off', msg);
+                },
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
             );
         } else {
             setGpsStatus('off', 'Geolocation tidak didukung');
@@ -162,7 +173,7 @@
     }, 800);
 
     // ---------- Background Geolocation (aktif saat app diminimize) ----------
-    function setupBackgroundGeolocation() {
+    function setupBackgroundGeolocation(onReady) {
         bgGeo.configure({
             desiredAccuracy: bgGeo.HIGH_ACCURACY,
             stationaryRadius: 10,
@@ -181,6 +192,7 @@
             locationProvider: bgGeo.ACTIVITY_PROVIDER
         }, function () {
             bgGeoConfigured = true;
+            if (onReady) onReady();
         }, function (err) {
             showToast('Gagal konfigurasi tracking latar belakang: ' + err);
         });
@@ -274,8 +286,18 @@
         if (hasBgPlugin) {
             // Tracking tetap berjalan walau app diminimize/background,
             // ditandai notifikasi persisten (foreground service Android).
-            bgGeo.start();
-            setGpsStatus('live', 'Melacak (latar belakang aktif)…');
+            // Konfigurasi plugin baru dilakukan di sini (bukan saat boot) supaya
+            // dialog izin lokasinya tidak tabrakan dengan permintaan posisi awal.
+            setGpsStatus('live', 'Menyiapkan tracking latar belakang…');
+            if (!bgGeoConfigured) {
+                setupBackgroundGeolocation(function () {
+                    bgGeo.start();
+                    setGpsStatus('live', 'Melacak (latar belakang aktif)…');
+                });
+            } else {
+                bgGeo.start();
+                setGpsStatus('live', 'Melacak (latar belakang aktif)…');
+            }
         } else {
             // Fallback: hanya jalan selagi app di foreground (browser / plugin belum terpasang)
             watchId = navigator.geolocation.watchPosition(onPosition, onPositionError, {
