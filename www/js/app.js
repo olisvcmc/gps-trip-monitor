@@ -17,12 +17,11 @@ var durationTimer = null;
 var speedSamples = [];
 var currentSession = null;
 var authMode = 'login';
-
-// Flag untuk mencegah inisialisasi ganda
 var isBooted = false;
 var appEntered = false;
 var controlsBound = false;
 var lastLivePing = 0;
+var bgGeoFallbackTimer = null; // Timer untuk fallback jika plugin tidak merespons
 
 // ---------- DOM ----------
 var el = {
@@ -107,7 +106,11 @@ function enterApp() {
     if (window.BackgroundGeolocation) {
         hasBgPlugin = true;
         bgGeo = window.BackgroundGeolocation;
+        console.log('[GPS App] BackgroundGeolocation plugin terdeteksi');
+    } else {
+        console.log('[GPS App] BackgroundGeolocation plugin TIDAK terdeteksi, pakai fallback');
     }
+    
     TripSync.init(updateSyncUI);
 
     if (navigator.geolocation) {
@@ -115,12 +118,14 @@ function enterApp() {
             function (pos) {
                 if (map) map.setView([pos.coords.latitude, pos.coords.longitude], 16);
                 setGpsStatus('ready', 'Siap');
+                console.log('[GPS App] Posisi awal didapat:', pos.coords.latitude, pos.coords.longitude);
             },
             function (err) {
                 var msg = 'GPS tidak tersedia';
                 if (err && err.code === 1) msg = 'Izin lokasi ditolak';
                 else if (err && err.code === 3) msg = 'Sinyal GPS lambat';
                 setGpsStatus('off', msg);
+                console.error('[GPS App] Gagal dapat posisi awal:', err);
             },
             { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
         );
@@ -198,7 +203,6 @@ function updateSyncUI(status) {
     else el.syncText.textContent = status.pending > 0 ? status.pending + ' menunggu sync' : 'Tersinkron';
 }
 
-// Cordova fallback
 document.addEventListener('deviceready', boot, false);
 setTimeout(function () {
     if (!window.cordova && !isBooted) {
@@ -211,12 +215,12 @@ setTimeout(function () {
 function setupBackgroundGeolocation(onReady) {
     bgGeo.configure({
         desiredAccuracy: bgGeo.HIGH_ACCURACY,
-        stationaryRadius: 10,
-        distanceFilter: 8,
-        debug: false,
-        interval: 4000,
-        fastestInterval: 2000,
-        activitiesInterval: 10000,
+        stationaryRadius: 0, // PERBAIKAN: dari 10 ke 0, agar update lebih sering
+        distanceFilter: 0,   // PERBAIKAN: dari 8 ke 0, update setiap ada perubahan
+        debug: true,         // PERBAIKAN: true agar bisa lihat log di console
+        interval: 2000,      // PERBAIKAN: dari 4000 ke 2000ms
+        fastestInterval: 1000,
+        activitiesInterval: 5000,
         stopOnStillActivity: false,
         notificationTitle: 'GPS Trip Monitor',
         notificationText: 'Melacak perjalanan Anda…',
@@ -227,25 +231,47 @@ function setupBackgroundGeolocation(onReady) {
         locationProvider: bgGeo.ACTIVITY_PROVIDER
     }, function () {
         bgGeoConfigured = true;
+        console.log('[GPS App] BackgroundGeolocation dikonfigurasi');
         if (onReady) onReady();
     }, function (err) {
         showToast('Gagal konfigurasi background GPS: ' + err);
+        console.error('[GPS App] Gagal konfigurasi bgGeo:', err);
     });
+    
     bgGeo.on('location', function (location) {
+        console.log('[GPS App] Lokasi dari bgGeo:', location.latitude, location.longitude);
         handleLocationUpdate({
-            lat: location.latitude, lng: location.longitude,
+            lat: location.latitude,
+            lng: location.longitude,
             accuracy: location.accuracy,
             speedMs: (typeof location.speed === 'number' && location.speed >= 0) ? location.speed : null,
             time: location.time || Date.now()
         });
         bgGeo.finish();
     });
+    
     bgGeo.on('stationary', function (location) {
+        console.log('[GPS App] Stationary:', location.latitude, location.longitude);
         handleLocationUpdate({
-            lat: location.latitude, lng: location.longitude,
-            accuracy: location.accuracy, speedMs: 0, time: location.time || Date.now()
+            lat: location.latitude,
+            lng: location.longitude,
+            accuracy: location.accuracy,
+            speedMs: 0,
+            time: location.time || Date.now()
         });
         bgGeo.finish();
+    });
+    
+    bgGeo.on('error', function (error) {
+        showToast('Background GPS error: ' + (error && error.message ? error.message : error));
+        console.error('[GPS App] bgGeo error:', error);
+    });
+    
+    bgGeo.on('authorization', function (status) {
+        console.log('[GPS App] Authorization status:', status);
+        if (status === bgGeo.AUTHORIZED) return;
+        showToast('Izin lokasi "selalu izinkan" diperlukan.');
+        setTimeout(function () { bgGeo.showAppSettings(); }, 1000);
     });
 }
 
@@ -296,10 +322,47 @@ function startTrip() {
     if (hasBgPlugin) {
         setGpsStatus('live', 'Menyiapkan tracking latar belakang…');
         if (!bgGeoConfigured) {
-            setupBackgroundGeolocation(function () { bgGeo.start(); setGpsStatus('live', 'Melacak (latar belakang)…'); });
-        } else { bgGeo.start(); setGpsStatus('live', 'Melacak (latar belakang)…'); }
+            setupBackgroundGeolocation(function () {
+                bgGeo.start();
+                setGpsStatus('live', 'Melacak (latar belakang)…');
+                console.log('[GPS App] bgGeo.start() dipanggil');
+                
+                // FALLBACK: Jika 10 detik tidak ada update dari bgGeo, pakai navigator.geolocation
+                bgGeoFallbackTimer = setTimeout(function () {
+                    if (tripPoints.length === 0 && tripState === 'tracking') {
+                        console.warn('[GPS App] bgGeo tidak merespons, pakai fallback navigator.geolocation');
+                        showToast('Plugin GPS lambat, pakai mode normal…');
+                        watchId = navigator.geolocation.watchPosition(onPosition, onPositionError, {
+                            enableHighAccuracy: true,
+                            maximumAge: 1000,
+                            timeout: 15000
+                        });
+                    }
+                }, 10000); // 10 detik timeout
+            });
+        } else {
+            bgGeo.start();
+            setGpsStatus('live', 'Melacak (latar belakang)…');
+            console.log('[GPS App] bgGeo.start() dipanggil (sudah dikonfigurasi)');
+            
+            bgGeoFallbackTimer = setTimeout(function () {
+                if (tripPoints.length === 0 && tripState === 'tracking') {
+                    console.warn('[GPS App] bgGeo tidak merespons, pakai fallback');
+                    showToast('Plugin GPS lambat, pakai mode normal…');
+                    watchId = navigator.geolocation.watchPosition(onPosition, onPositionError, {
+                        enableHighAccuracy: true,
+                        maximumAge: 1000,
+                        timeout: 15000
+                    });
+                }
+            }, 10000);
+        }
     } else {
-        watchId = navigator.geolocation.watchPosition(onPosition, onPositionError, { enableHighAccuracy: true, maximumAge: 1000, timeout: 15000 });
+        watchId = navigator.geolocation.watchPosition(onPosition, onPositionError, {
+            enableHighAccuracy: true,
+            maximumAge: 1000,
+            timeout: 15000
+        });
         setGpsStatus('live', 'Melacak…');
     }
     durationTimer = setInterval(updateDuration, 1000);
@@ -321,6 +384,7 @@ function stopTrip() {
     } catch (e) { console.warn('Gagal menghentikan bgGeo:', e); }
 
     if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+    if (bgGeoFallbackTimer) { clearTimeout(bgGeoFallbackTimer); bgGeoFallbackTimer = null; }
     if (durationTimer) { clearInterval(durationTimer); durationTimer = null; }
 
     tripState = 'idle';
@@ -358,7 +422,6 @@ function handleLocationUpdate(data) {
     if (map) map.panTo([lat, lng], { animate: true });
     updateHud(point);
 
-    // Live ping ke server setiap 10 detik
     if (currentSession && currentSession.token && typeof TripAPI.updateLocation === 'function') {
         var now = Date.now();
         if (now - lastLivePing > 10000) {
@@ -371,6 +434,7 @@ function handleLocationUpdate(data) {
 }
 
 function onPosition(pos) {
+    console.log('[GPS App] Posisi dari navigator.geolocation:', pos.coords.latitude, pos.coords.longitude);
     handleLocationUpdate({
         lat: pos.coords.latitude, lng: pos.coords.longitude,
         accuracy: pos.coords.accuracy, speedMs: pos.coords.speed, time: Date.now()
@@ -380,6 +444,7 @@ function onPosition(pos) {
 function onPositionError(err) {
     setGpsStatus('off', 'Sinyal GPS lemah');
     showToast('GPS error: ' + (err.message || 'tidak dapat mengambil lokasi'));
+    console.error('[GPS App] Geolocation error:', err);
 }
 
 // ---------- HUD ----------
