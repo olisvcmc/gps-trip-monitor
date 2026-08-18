@@ -12,7 +12,10 @@
     --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
+/* PERBAIKAN: Tambahkan tanda * (universal selector) */
 * { box-sizing: border-box; }
+
+/* PENTING: pastikan atribut hidden SELALU menang atas aturan display lain */
 [hidden] {
     display: none !important;
 }
@@ -37,11 +40,11 @@ html, body {
     filter: saturate(0.85) brightness(0.9);
 }
 
-/* Dark tile filter overlay to keep the map in the studio's dark palette */
+/* Dark tile filter overlay */
 .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9); }
 .leaflet-marker-icon, .leaflet-popup { filter: invert(1) hue-rotate(180deg); }
 
-/* Top bar */
+/* ===== Top bar ===== */
 .topbar {
     position: absolute;
     top: 0; left: 0; right: 0;
@@ -67,8 +70,15 @@ html, body {
     color: var(--text-dim);
 }
 
-.status-pill {
+/* Wrapper untuk item di sebelah kanan topbar */
+.topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     pointer-events: auto;
+}
+
+.status-pill {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -79,6 +89,7 @@ html, body {
     font-size: 12px;
     backdrop-filter: blur(8px);
 }
+
 .status-dot {
     width: 7px; height: 7px; border-radius: 50%;
     background: var(--amber);
@@ -96,23 +107,53 @@ html, body {
     50% { opacity: 0.4; }
 }
 
-/* Sync status pill */
+/* Badge Nama User */
+.user-pill {
+    background: rgba(123, 97, 255, 0.15);
+    border: 1px solid rgba(123, 97, 255, 0.3);
+    color: var(--aurora-2);
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Tombol Logout */
+.btn-logout {
+    background: rgba(255, 77, 94, 0.15);
+    border: 1px solid rgba(255, 77, 94, 0.3);
+    color: var(--danger);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.btn-logout:active { transform: scale(0.95); background: rgba(255, 77, 94, 0.3); }
+
+/* ===== Sync status pill ===== */
 .sync-pill {
     position: absolute;
-    top: calc(env(safe-area-inset-top, 12px) + 48px);
+    top: 70px; /* Posisi di bawah topbar */
     right: 12px;
-    z-index: 20;
+    z-index: 15; /* Pastikan terlihat di atas elemen lain */
     display: flex;
     align-items: center;
     gap: 6px;
-    background: rgba(16,22,31,0.85);
+    background: rgba(16,22,31,0.9);
     border: 1px solid var(--panel-border);
     border-radius: 20px;
-    padding: 5px 10px;
+    padding: 6px 12px;
     font-size: 11px;
     color: var(--text-dim);
     backdrop-filter: blur(8px);
+    pointer-events: auto;
 }
+
 .sync-dot {
     width: 6px; height: 6px; border-radius: 50%;
     background: var(--text-dim);
@@ -121,24 +162,27 @@ html, body {
 .sync-dot.syncing { background: var(--amber); box-shadow: 0 0 6px var(--amber); animation: pulse-dot 1s ease-in-out infinite; }
 .sync-dot.offline { background: var(--danger); }
 
-/* Auth overlay */
+/* ===== Auth overlay ===== */
 .auth-overlay {
     align-items: center;
     justify-content: center;
     z-index: 50;
     background: var(--bg);
 }
+
 .auth-panel {
     width: 100%;
     max-width: 380px;
-    max-height: none;
     border-radius: 22px;
     border: 1px solid var(--panel-border);
     padding: 28px 22px;
+    background: var(--panel);
 }
+
 .auth-brand { display: flex; align-items: center; gap: 8px; margin-bottom: 22px; }
 .auth-panel h2 { margin: 0 0 6px; font-size: 20px; }
 .auth-sub { color: var(--text-dim); font-size: 13px; margin: 0 0 22px; line-height: 1.5; }
+
 .auth-label {
     display: block;
     font-size: 11px;
@@ -147,6 +191,7 @@ html, body {
     color: var(--text-dim);
     margin: 14px 0 6px;
 }
+
 .auth-input {
     width: 100%;
     background: rgba(255,255,255,0.05);
@@ -158,12 +203,10 @@ html, body {
     outline: none;
 }
 .auth-input:focus { border-color: var(--aurora-1); }
-.auth-error {
-    color: var(--danger);
-    font-size: 13px;
-    margin: 12px 0 0;
-}
-.auth-submit { width: 100%; max-width: none; margin-top: 20px; }
+
+.auth-error { color: var(--danger); font-size: 13px; margin: 12px 0 0; }
+.auth-submit { width: 100%; margin-top: 20px; }
+
 .btn-link {
     display: block;
     width: 100%;
@@ -175,7 +218,7 @@ html, body {
     cursor: pointer;
 }
 
-/* HUD */
+/* ===== HUD ===== */
 .hud {
     position: absolute;
     left: 12px; right: 12px;
@@ -189,23 +232,17 @@ html, body {
     box-shadow: 0 8px 30px rgba(0,0,0,0.4);
 }
 
-.hud-row {
-    display: flex;
-    justify-content: space-between;
-}
-.hud-row-secondary {
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid var(--panel-border);
-}
-
+.hud-row { display: flex; justify-content: space-between; }
+.hud-row-secondary { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--panel-border); }
 .hud-stat { display: flex; flex-direction: column; gap: 2px; }
+
 .hud-label {
     font-size: 10px;
     letter-spacing: 1.5px;
     text-transform: uppercase;
     color: var(--text-dim);
 }
+
 .hud-value {
     font-family: var(--font-display);
     font-size: 26px;
@@ -215,6 +252,7 @@ html, body {
     background-clip: text;
     color: transparent;
 }
+
 .hud-value small {
     font-size: 12px;
     margin-left: 3px;
@@ -223,13 +261,9 @@ html, body {
 }
 
 .hud-stat-sm { display: flex; flex-direction: column; gap: 2px; }
-.hud-value-sm {
-    font-family: var(--font-display);
-    font-size: 13px;
-    color: var(--text);
-}
+.hud-value-sm { font-family: var(--font-display); font-size: 13px; color: var(--text); }
 
-/* Controls */
+/* ===== Controls ===== */
 .controls {
     position: absolute;
     left: 0; right: 0; bottom: 0;
@@ -250,7 +284,7 @@ html, body {
     font-size: 15px;
     padding: 14px 22px;
     cursor: pointer;
-    transition: transform 0.15s ease, opacity 0.15s ease;
+    transition: transform 0.15s ease;
 }
 .btn:active { transform: scale(0.96); }
 
@@ -261,16 +295,9 @@ html, body {
     flex: 1;
     max-width: 220px;
 }
-.btn-secondary {
-    background: rgba(255,255,255,0.08);
-    color: var(--text);
-    border: 1px solid var(--panel-border);
-}
-.btn-danger {
-    background: var(--danger);
-    color: #1a0508;
-    box-shadow: 0 6px 18px rgba(255,77,94,0.35);
-}
+
+.btn-secondary { background: rgba(255,255,255,0.08); color: var(--text); border: 1px solid var(--panel-border); }
+.btn-danger { background: var(--danger); color: #1a0508; box-shadow: 0 6px 18px rgba(255,77,94,0.35); }
 .btn-ghost {
     background: rgba(16,22,31,0.85);
     border: 1px solid var(--panel-border);
@@ -280,7 +307,7 @@ html, body {
     display: flex; align-items: center; justify-content: center;
 }
 
-/* Custom marker */
+/* ===== Custom marker ===== */
 .trip-marker {
     width: 18px; height: 18px;
     border-radius: 50%;
@@ -302,7 +329,7 @@ html, body {
     100% { transform: scale(2.2); opacity: 0; }
 }
 
-/* Overlay / history panel */
+/* ===== Overlay / history panel ===== */
 .overlay {
     position: absolute;
     inset: 0;
@@ -312,6 +339,7 @@ html, body {
     display: flex;
     align-items: flex-end;
 }
+
 .panel {
     width: 100%;
     max-height: 72%;
@@ -321,17 +349,10 @@ html, body {
     padding: 18px 16px calc(env(safe-area-inset-bottom, 16px) + 16px);
     overflow-y: auto;
 }
-.panel-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
-}
-.panel-header h2 {
-    font-size: 16px;
-    margin: 0;
-    letter-spacing: 0.5px;
-}
+
+.panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.panel-header h2 { font-size: 16px; margin: 0; letter-spacing: 0.5px; }
+
 .btn-icon {
     background: rgba(255,255,255,0.08);
     border: none;
@@ -353,9 +374,11 @@ html, body {
     justify-content: space-between;
     align-items: center;
 }
+
 .trip-card-info { display: flex; flex-direction: column; gap: 4px; }
 .trip-card-date { font-size: 12px; color: var(--text-dim); }
 .trip-card-stats { font-family: var(--font-display); font-size: 13px; color: var(--aurora-1); }
+
 .trip-card-del {
     background: transparent;
     border: none;
@@ -365,7 +388,7 @@ html, body {
     padding: 6px;
 }
 
-/* Toast */
+/* ===== Toast ===== */
 .toast {
     position: absolute;
     left: 50%;
