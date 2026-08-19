@@ -409,3 +409,17 @@ html, body {
     letter-spacing: 1px;
     text-transform: uppercase;
 }
+/* Nama user di topbar */
+.brand-user {
+    color: var(--aurora-1);
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-left: 8px;
+    padding: 4px 10px;
+    background: rgba(0, 217, 192, 0.1);
+    border: 1px solid rgba(0, 217, 192, 0.3);
+    border-radius: 12px;
+}
