@@ -12,7 +12,7 @@
     // GANTI INI dengan IP/Domain server Anda yang sebenarnya!
     // Contoh di bawah menggunakan IP yang Anda sebutkan sebelumnya. 
     // Pastikan folder 'cordova/gps-tracker/server' sesuai dengan struktur folder di server Anda.
-    var API_BASE_URL = 'https://10.83.49.107/cordova/gps-tracker/server'; 
+    var API_BASE_URL = 'https://olisvcmc.net/cordova/server'; 
 
     function setBaseUrl(url) { 
         API_BASE_URL = url.replace(/\/$/, ''); 
