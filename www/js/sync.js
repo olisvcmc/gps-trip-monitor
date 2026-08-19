@@ -10,7 +10,7 @@ Dipanggil juga secara manual setelah trip baru selesai dicatat, untuk percobaan 
 (function (global) {
     'use strict';
     var isSyncing = false;
-    var onStatusChange = null; // callback opsional untuk update UI (jumlah pending, dsb.)
+    var onStatusChange = null;
 
     // PERBAIKAN: Deteksi status online yang lebih akurat
     function isOnline() {
@@ -34,16 +34,11 @@ Dipanggil juga secara manual setelah trip baru selesai dicatat, untuk percobaan 
 
     function init(statusCallback) {
         onStatusChange = statusCallback || null;
-        // cordova-plugin-network-information memicu event ini di document
         document.addEventListener('online', processQueue, false);
         document.addEventListener('offline', function () { report(); }, false);
-        // Fallback untuk browser biasa
         window.addEventListener('online', processQueue);
         window.addEventListener('offline', function () { report(); });
-        // Cek sekali saat startup, kalau kebetulan sudah online & ada antrian lama
         setTimeout(processQueue, 1500);
-        // Polling ringan tiap 30 detik sebagai jaring pengaman
-        // (beberapa perangkat/ROM tidak selalu memicu event online dengan konsisten)
         setInterval(function () {
             if (isOnline()) processQueue();
         }, 30000);
@@ -52,7 +47,7 @@ Dipanggil juga secara manual setelah trip baru selesai dicatat, untuk percobaan 
     function processQueue() {
         if (isSyncing || !isOnline()) { report(); return; }
         TripDB.getSession(function (session) {
-            if (!session || !session.token) { report(); return; } // belum login, tidak ada yang disync
+            if (!session || !session.token) { report(); return; }
             TripDB.getUnsyncedTrips(function (trips) {
                 if (!trips.length) { report(); return; }
                 isSyncing = true;
@@ -76,8 +71,6 @@ Dipanggil juga secara manual setelah trip baru selesai dicatat, untuk percobaan 
             })
             .catch(function (err) {
                 console.warn('Gagal sync trip', trip.id, err);
-                // Hentikan batch ini kalau errornya bukan soal jaringan (misal token invalid),
-                // supaya tidak spam request gagal berulang-ulang.
                 done();
             });
     }
