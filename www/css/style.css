@@ -63,21 +63,13 @@ html, body {
     width: 8px; height: 8px; border-radius: 50%;
     background: linear-gradient(135deg, var(--aurora-1), var(--aurora-2));
     box-shadow: 0 0 10px var(--aurora-1);
-    flex-shrink: 0;
 }
-.brand-lines { display: flex; flex-direction: column; gap: 2px; }
 .brand-text {
     font-family: var(--font-display);
     font-size: 12px;
     letter-spacing: 2px;
     color: var(--text-dim);
 }
-.brand-user {
-    font-size: 11px;
-    color: var(--aurora-1);
-    font-weight: 600;
-}
-.brand-user:empty { display: none; }
 
 .status-pill {
     pointer-events: auto;
@@ -402,4 +394,18 @@ html, body {
     max-width: 85%;
     text-align: center;
     box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+/* Style untuk nama user di dashboard */
+.user-info {
+    display: flex;
+    align-items: center;
+    margin-right: 12px;
+}
+#currentUser {
+    color: var(--aurora-1);
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
 }
