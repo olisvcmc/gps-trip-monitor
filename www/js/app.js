@@ -68,52 +68,46 @@
         });
     }
 
-    function enterApp() {
-        el.authOverlay.hidden = true;
-        initMap();
-        bindControls();
-        renderHistory();
-        if (!authControlsBound) { bindAuthControls(); }
-        bindLogout();
-
-        if (currentSession && currentSession.username) {
-            el.brandUser.textContent = currentSession.username;
-        }
-
-        // Deteksi keberadaan plugin saja di sini (tidak apa-apa, tidak memicu dialog izin).
-        // Konfigurasi & start plugin baru dilakukan lazy di startTrip() — lihat catatan di sana.
-        if (window.BackgroundGeolocation) {
-            hasBgPlugin = true;
-            bgGeo = window.BackgroundGeolocation;
-        }
-
-        TripSync.init(updateSyncUI);
-
-        // Coba dapatkan posisi awal supaya peta langsung terpusat, lalu mulai idle watch
-        // supaya HUD (koordinat, kecepatan, akurasi) TETAP ter-update terus-menerus
-        // walau user belum menekan "Mulai Perjalanan" — sebelumnya info ini cuma
-        // ke-update saat trip sedang aktif direkam, jadi terlihat kosong/diam di awal.
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                function (pos) {
-                    map.setView([pos.coords.latitude, pos.coords.longitude], 16);
-                    currentMarker.setLatLng([pos.coords.latitude, pos.coords.longitude]);
-                    setGpsStatus('ready', 'Siap');
-                    startIdleWatch();
-                },
-                function (err) {
-                    var msg = 'GPS tidak tersedia';
-                    if (err && err.code === 1) msg = 'Izin lokasi ditolak';
-                    else if (err && err.code === 3) msg = 'Sinyal GPS lambat, coba tombol pusatkan';
-                    setGpsStatus('off', msg);
-                    startIdleWatch(); // tetap coba, siapa tahu sinyal muncul beberapa detik kemudian
-                },
-                { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
-            );
-        } else {
-            setGpsStatus('off', 'Geolocation tidak didukung');
-        }
+   function enterApp() {
+    el.authOverlay.hidden = true;
+    initMap();
+    bindControls();
+    renderHistory();
+    if (!authControlsBound) { bindAuthControls(); }
+    bindLogout();
+    
+    // PERBAIKAN: Cek dulu apakah elemen brandUser ada sebelum diisi
+    if (currentSession && currentSession.username && el.brandUser) {
+        el.brandUser.textContent = currentSession.username;
     }
+    
+    if (window.BackgroundGeolocation) {
+        hasBgPlugin = true;
+        bgGeo = window.BackgroundGeolocation;
+    }
+    TripSync.init(updateSyncUI);
+    
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function (pos) {
+                map.setView([pos.coords.latitude, pos.coords.longitude], 16);
+                currentMarker.setLatLng([pos.coords.latitude, pos.coords.longitude]);
+                setGpsStatus('ready', 'Siap');
+                startIdleWatch();
+            },
+            function (err) {
+                var msg = 'GPS tidak tersedia';
+                if (err && err.code === 1) msg = 'Izin lokasi ditolak';
+                else if (err && err.code === 3) msg = 'Sinyal GPS lambat, coba tombol pusatkan';
+                setGpsStatus('off', msg);
+                startIdleWatch();
+            },
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+        );
+    } else {
+        setGpsStatus('off', 'Geolocation tidak didukung');
+    }
+}
 
     // Watch GPS ringan yang jalan terus selama app terbuka & TIDAK sedang merekam trip.
     // Update posisi marker + HUD (kecepatan, koordinat, akurasi) supaya selalu hidup/terkini.
@@ -168,32 +162,24 @@
     }
 
     function doLogout() {
-        // Hentikan semua aktivitas GPS yang sedang berjalan supaya bersih sebelum ganti akun.
-        if (tripState !== 'idle') { stopTrip(); }
-        stopIdleWatch();
-
-        // Cabut token di server dulu (kalau online) supaya sesi ini benar-benar berakhir,
-        // bukan cuma dihapus di HP. Kalau offline, tetap lanjut logout lokal —
-        // token lama di server jadi "yatim" tapi tidak masalah untuk keamanan.
-        if (currentSession && currentSession.token && TripSync.isOnline()) {
-            TripAPI.logout(currentSession.token).catch(function () { /* abaikan, tetap lanjut logout lokal */ });
-        }
-
-        TripDB.clearSession(function () {
-            currentSession = null;
-            el.brandUser.textContent = '';
-            el.historyOverlay.hidden = true;
-            el.authUsername.value = '';
-            el.authPassword.value = '';
-            el.authError.hidden = true;
-            authMode = 'login';
-            el.authTitle.textContent = 'Masuk ke akun Anda';
-            el.btnAuthSubmit.textContent = 'Masuk';
-            el.btnAuthToggle.textContent = 'Belum punya akun? Daftar di sini';
-            if (!authControlsBound) { bindAuthControls(); }
-            el.authOverlay.hidden = false;
-        });
-    }
+    if (tripState !== 'idle') { stopTrip(); }
+    stopIdleWatch();
+    TripDB.clearSession(function () {
+        currentSession = null;
+        // PERBAIKAN: Cek dulu apakah elemen brandUser ada
+        if (el.brandUser) { el.brandUser.textContent = ''; }
+        el.historyOverlay.hidden = true;
+        el.authUsername.value = '';
+        el.authPassword.value = '';
+        el.authError.hidden = true;
+        authMode = 'login';
+        el.authTitle.textContent = 'Masuk ke akun Anda';
+        el.btnAuthSubmit.textContent = 'Masuk';
+        el.btnAuthToggle.textContent = 'Belum punya akun? Daftar di sini';
+        if (!authControlsBound) { bindAuthControls(); }
+        el.authOverlay.hidden = false;
+    });
+}
 
     function submitAuth() {
         var username = el.authUsername.value.trim();
