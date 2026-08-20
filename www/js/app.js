@@ -49,7 +49,8 @@ var el = {
     authError: document.getElementById('authError'),
     btnAuthSubmit: document.getElementById('btnAuthSubmit'),
     btnAuthToggle: document.getElementById('btnAuthToggle'),
-    btnLogout: document.getElementById('btnLogout')
+    btnLogout: document.getElementById('btnLogout'),
+    currentUser: document.getElementById('currentUser') // PERBAIKAN: Ganti brandUser dengan currentUser
 };
 
 // ---------- Helper: Waktu Lokal HP ----------
@@ -83,6 +84,11 @@ function enterApp() {
     renderHistory();
     if (!authControlsBound) { bindAuthControls(); }
     bindLogout();
+
+    // TAMPILKAN NAMA USER DI DASHBOARD
+    if (currentSession && currentSession.username && el.currentUser) {
+        el.currentUser.textContent = currentSession.username;
+    }
 
     if (window.BackgroundGeolocation) {
         hasBgPlugin = true;
@@ -122,6 +128,7 @@ function startIdleWatch() {
     idleWatchId = navigator.geolocation.watchPosition(function (pos) {
         if (tripState === 'tracking') return;
         var lat = pos.coords.latitude, lng = pos.coords.longitude;
+        // Filter koordinat invalid
         if (!lat || !lng || (Math.abs(lat) < 0.0001 && Math.abs(lng) < 0.0001) || isNaN(lat) || isNaN(lng)) return;
         currentMarker.setLatLng([lat, lng]);
         setGpsStatus('ready', 'Siap');
@@ -170,6 +177,8 @@ function doLogout() {
     stopIdleWatch();
     TripDB.clearSession(function () {
         currentSession = null;
+        // Reset nama user
+        if (el.currentUser) el.currentUser.textContent = 'Guest';
         el.historyOverlay.hidden = true;
         el.authUsername.value = '';
         el.authPassword.value = '';
