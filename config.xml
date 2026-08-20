@@ -48,6 +48,9 @@
         <config-file target="*-Info.plist" parent="NSLocationAlwaysAndWhenInUseUsageDescription">
             <string>Aplikasi ini butuh akses lokasi latar belakang untuk terus mencatat rute perjalanan.</string>
         </config-file>
+        <config-file target="*-Info.plist" parent="NSLocationAlwaysUsageDescription">
+            <string>Aplikasi ini butuh akses lokasi latar belakang agar pelacakan perjalanan tetap berjalan saat aplikasi diminimize.</string>
+        </config-file>
         <config-file target="*-Info.plist" parent="UIBackgroundModes">
             <array>
                 <string>location</string>
@@ -64,7 +67,10 @@
     <!-- Plugin Background Geolocation (Transistorsoft - Kompatibel dengan Gradle 8+) -->
     <plugin name="cordova-background-geolocation-lt" spec="^4.10.3" />
     
+    <!-- Penyimpanan lokal SQLite -->
     <plugin name="cordova-sqlite-storage" spec="^6.1.0" />
+    
+    <!-- Deteksi status koneksi -->
     <plugin name="cordova-plugin-network-information" spec="^3.0.0" />
     
     <engine name="android" spec="^15.1.0" />
