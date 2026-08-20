@@ -1,32 +1,30 @@
 <?xml version='1.0' encoding='utf-8'?>
 <widget id="com.boskita.gpstracker" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0" xmlns:android="http://schemas.android.com/apk/res/android">
     <name>GPS Trip Monitor</name>
-    <description>
-        Aplikasi monitoring perjalanan real-time menggunakan GPS dan peta Leaflet.
-    </description>
-    <author email="dev@boskita.local" href="https://boskita.local">
-        Bos Kita
-    </author>
-
+    <description>Aplikasi monitoring perjalanan real-time menggunakan GPS dan peta Leaflet.</description>
+    <author email="dev@boskita.local" href="https://boskita.local">Bos Kita</author>
     <content src="index.html" />
-
     <access origin="*" />
     <allow-intent href="http://*/*" />
     <allow-intent href="https://*/*" />
     <allow-navigation href="*" />
-
+    
     <preference name="DisallowOverscroll" value="true" />
     <preference name="Orientation" value="portrait" />
     <preference name="Fullscreen" value="false" />
     <preference name="android-minSdkVersion" value="24" />
     <preference name="AndroidXEnabled" value="true" />
-
+    <preference name="Scheme" value="http" />
+    
     <platform name="android">
         <allow-intent href="market:*" />
-        <preference name="Scheme" value="http" />
+        
+        <!-- Izinkan HTTP untuk server lokal -->
         <edit-config file="app/src/main/AndroidManifest.xml" mode="merge" target="/manifest/application">
             <application android:usesCleartextTraffic="true" />
         </edit-config>
+        
+        <!-- Permissions yang diperlukan -->
         <config-file target="AndroidManifest.xml" parent="/manifest">
             <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
             <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
@@ -39,8 +37,19 @@
             <uses-permission android:name="android.permission.WAKE_LOCK" />
             <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
         </config-file>
+        
+        <!-- Konfigurasi untuk plugin background geolocation (mauron85) -->
+        <config-file target="AndroidManifest.xml" parent="/manifest/application">
+            <service android:name="com.marianhello.bgloc.LocationService" android:exported="false" />
+            <service android:name="com.marianhello.bgloc.sync.SyncService" android:exported="false" />
+            <receiver android:name="com.marianhello.bgloc.BootCompletedReceiver" android:exported="false">
+                <intent-filter>
+                    <action android:name="android.intent.action.BOOT_COMPLETED" />
+                </intent-filter>
+            </receiver>
+        </config-file>
     </platform>
-
+    
     <platform name="ios">
         <preference name="GPSAlwaysUsageDescription" value="Aplikasi ini butuh akses lokasi untuk memantau perjalanan Anda secara real-time." />
         <preference name="GPSWhenInUseUsageDescription" value="Aplikasi ini butuh akses lokasi untuk memantau perjalanan Anda secara real-time." />
@@ -50,28 +59,34 @@
         <config-file target="*-Info.plist" parent="NSLocationAlwaysAndWhenInUseUsageDescription">
             <string>Aplikasi ini butuh akses lokasi latar belakang untuk terus mencatat rute perjalanan.</string>
         </config-file>
-        <config-file target="*-Info.plist" parent="NSLocationAlwaysUsageDescription">
-            <string>Aplikasi ini butuh akses lokasi latar belakang agar pelacakan perjalanan tetap berjalan saat aplikasi diminimize.</string>
-        </config-file>
         <config-file target="*-Info.plist" parent="UIBackgroundModes">
             <array>
                 <string>location</string>
             </array>
         </config-file>
     </platform>
-
+    
+    <!-- Plugin yang Digunakan (Semua GRATIS) -->
     <plugin name="cordova-plugin-geolocation" spec="^4.1.0" />
     <plugin name="cordova-plugin-whitelist" spec="^1.3.5" />
     <plugin name="cordova-plugin-device" spec="^2.1.0" />
     <plugin name="cordova-plugin-statusbar" spec="^3.0.0" />
-    <!-- Plugin gratis & open-source untuk tracking GPS saat app diminimize/background.
-         Menjalankan foreground service dengan notifikasi persisten (wajib di Android 8+). -->
-    <plugin name="cordova-background-geolocation-lt" spec="^4.10.3" />
-    <!-- Penyimpanan lokal SQLite: data perjalanan tetap tersimpan walau tidak ada internet -->
+    
+    <!-- Plugin Background GPS GRATIS (pengganti cordova-background-geolocation-lt) -->
+    <plugin name="@mauron85/cordova-plugin-background-geolocation" spec="^3.1.0">
+        <variable name="GOOGLE_PLAY_SERVICES_VERSION" value="19.0.0" />
+        <variable name="ANDROID_SUPPORT_LIBRARY_VERSION" value="26.1.0" />
+    </plugin>
+    
+    <!-- Plugin Foreground Service untuk notifikasi persisten -->
+    <plugin name="cordova-plugin-foreground-service" spec="^1.0.0" />
+    
+    <!-- Penyimpanan lokal SQLite -->
     <plugin name="cordova-sqlite-storage" spec="^6.1.0" />
-    <!-- Deteksi status koneksi untuk trigger auto-sync saat internet kembali on -->
+    
+    <!-- Deteksi status koneksi -->
     <plugin name="cordova-plugin-network-information" spec="^3.0.0" />
-
+    
     <engine name="android" spec=">=15.1.0" />
     <engine name="ios" spec=">=6.3.0" />
 </widget>
