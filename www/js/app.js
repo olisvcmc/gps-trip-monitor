@@ -22,6 +22,7 @@ var bgGeoFallbackTimer = null;
 var usingFallback = false;
 
 // ---------- DOM ----------
+// PERBAIKAN: Ganti 'brandUser' dengan 'currentUser' agar sesuai HTML & CSS Anda
 var el = {
     statSpeed: document.getElementById('statSpeed'),
     statDistance: document.getElementById('statDistance'),
@@ -50,7 +51,7 @@ var el = {
     btnAuthSubmit: document.getElementById('btnAuthSubmit'),
     btnAuthToggle: document.getElementById('btnAuthToggle'),
     btnLogout: document.getElementById('btnLogout'),
-    currentUser: document.getElementById('currentUser') // PENTING: Untuk menampilkan nama user
+    currentUser: document.getElementById('currentUser') // INI KUNCINYA
 };
 
 // ---------- Helper: Waktu Lokal HP ----------
@@ -85,7 +86,7 @@ function enterApp() {
     if (!authControlsBound) { bindAuthControls(); }
     bindLogout();
 
-    // TAMPILKAN NAMA USER DI DASHBOARD
+    // PERBAIKAN: Tampilkan nama user dengan aman (cek apakah elemen ada)
     if (currentSession && currentSession.username && el.currentUser) {
         el.currentUser.textContent = currentSession.username;
     }
@@ -168,11 +169,11 @@ function doLogout() {
     if (tripState !== 'idle') { stopTrip(); }
     stopIdleWatch();
     
-    // HAPUS: TripAPI.logout() karena tidak ada di api.js (ini penyebab tombol macet)
+    // PERBAIKAN: Hapus pemanggilan TripAPI.logout() yang tidak ada
     
     TripDB.clearSession(function () {
         currentSession = null;
-        // RESET NAMA USER
+        // PERBAIKAN: Reset nama user dengan aman
         if (el.currentUser) el.currentUser.textContent = 'Guest';
         
         el.historyOverlay.hidden = true;
