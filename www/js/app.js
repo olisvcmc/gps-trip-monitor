@@ -22,6 +22,7 @@ var bgGeoFallbackTimer = null;
 var usingFallback = false;
 
 // ---------- DOM ----------
+// PERBAIKAN: Ganti 'brandUser' dengan 'currentUser' agar sesuai dengan HTML & CSS Anda
 var el = {
     statSpeed: document.getElementById('statSpeed'),
     statDistance: document.getElementById('statDistance'),
@@ -50,7 +51,7 @@ var el = {
     btnAuthSubmit: document.getElementById('btnAuthSubmit'),
     btnAuthToggle: document.getElementById('btnAuthToggle'),
     btnLogout: document.getElementById('btnLogout'),
-    currentUser: document.getElementById('currentUser') // PERBAIKAN: Ganti brandUser dengan currentUser
+    currentUser: document.getElementById('currentUser') // PERBAIKAN: brandUser -> currentUser
 };
 
 // ---------- Helper: Waktu Lokal HP ----------
@@ -85,7 +86,7 @@ function enterApp() {
     if (!authControlsBound) { bindAuthControls(); }
     bindLogout();
 
-    // TAMPILKAN NAMA USER DI DASHBOARD
+    // PERBAIKAN: Tampilkan nama user di dashboard
     if (currentSession && currentSession.username && el.currentUser) {
         el.currentUser.textContent = currentSession.username;
     }
@@ -128,7 +129,6 @@ function startIdleWatch() {
     idleWatchId = navigator.geolocation.watchPosition(function (pos) {
         if (tripState === 'tracking') return;
         var lat = pos.coords.latitude, lng = pos.coords.longitude;
-        // Filter koordinat invalid
         if (!lat || !lng || (Math.abs(lat) < 0.0001 && Math.abs(lng) < 0.0001) || isNaN(lat) || isNaN(lng)) return;
         currentMarker.setLatLng([lat, lng]);
         setGpsStatus('ready', 'Siap');
@@ -175,10 +175,16 @@ function bindLogout() {
 function doLogout() {
     if (tripState !== 'idle') { stopTrip(); }
     stopIdleWatch();
+    
+    // PERBAIKAN: Hapus pemanggilan TripAPI.logout() karena tidak ada di api.js
+    // (pemanggilan fungsi yang tidak ada akan menyebabkan error & logout macet)
+    
     TripDB.clearSession(function () {
         currentSession = null;
-        // Reset nama user
+        
+        // PERBAIKAN: Reset nama user di dashboard
         if (el.currentUser) el.currentUser.textContent = 'Guest';
+        
         el.historyOverlay.hidden = true;
         el.authUsername.value = '';
         el.authPassword.value = '';
@@ -373,7 +379,6 @@ function startTrip() {
     durationTimer = setInterval(updateDuration, 1000);
 }
 
-// Timer fallback: jika plugin tidak merespons dalam 10 detik, beralih ke navigator.geolocation
 function startFallbackTimer() {
     if (bgGeoFallbackTimer) clearTimeout(bgGeoFallbackTimer);
     bgGeoFallbackTimer = setTimeout(function () {
@@ -456,7 +461,6 @@ function handleLocationUpdate(data) {
     var accuracy = data.accuracy;
     var speedMs = data.speedMs;
     
-    // Filter koordinat invalid (0,0) atau NaN
     if (!lat || !lng || (Math.abs(lat) < 0.0001 && Math.abs(lng) < 0.0001) || isNaN(lat) || isNaN(lng)) {
         console.warn('[GPS App] Koordinat invalid diabaikan:', lat, lng);
         return;
