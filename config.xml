@@ -12,19 +12,19 @@
     <preference name="DisallowOverscroll" value="true" />
     <preference name="Orientation" value="portrait" />
     <preference name="Fullscreen" value="false" />
+    
+    <!-- PERBAIKAN: Tambahkan compileSdk dan targetSdk untuk Cordova Android 15 -->
     <preference name="android-minSdkVersion" value="24" />
+    <preference name="android-compileSdkVersion" value="34" />
+    <preference name="android-targetSdkVersion" value="34" />
     <preference name="AndroidXEnabled" value="true" />
-    <preference name="Scheme" value="http" />
     
     <platform name="android">
         <allow-intent href="market:*" />
-        
-        <!-- Izinkan HTTP untuk server lokal -->
+        <preference name="Scheme" value="http" />
         <edit-config file="app/src/main/AndroidManifest.xml" mode="merge" target="/manifest/application">
             <application android:usesCleartextTraffic="true" />
         </edit-config>
-        
-        <!-- Permissions yang diperlukan -->
         <config-file target="AndroidManifest.xml" parent="/manifest">
             <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
             <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
@@ -36,17 +36,6 @@
             <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
             <uses-permission android:name="android.permission.WAKE_LOCK" />
             <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-        </config-file>
-        
-        <!-- Konfigurasi untuk plugin background geolocation (mauron85) -->
-        <config-file target="AndroidManifest.xml" parent="/manifest/application">
-            <service android:name="com.marianhello.bgloc.LocationService" android:exported="false" />
-            <service android:name="com.marianhello.bgloc.sync.SyncService" android:exported="false" />
-            <receiver android:name="com.marianhello.bgloc.BootCompletedReceiver" android:exported="false">
-                <intent-filter>
-                    <action android:name="android.intent.action.BOOT_COMPLETED" />
-                </intent-filter>
-            </receiver>
         </config-file>
     </platform>
     
@@ -66,27 +55,18 @@
         </config-file>
     </platform>
     
-    <!-- Plugin yang Digunakan (Semua GRATIS) -->
+    <!-- Plugin -->
     <plugin name="cordova-plugin-geolocation" spec="^4.1.0" />
     <plugin name="cordova-plugin-whitelist" spec="^1.3.5" />
     <plugin name="cordova-plugin-device" spec="^2.1.0" />
     <plugin name="cordova-plugin-statusbar" spec="^3.0.0" />
     
-    <!-- Plugin Background GPS GRATIS (pengganti cordova-background-geolocation-lt) -->
-    <plugin name="@mauron85/cordova-plugin-background-geolocation" spec="^3.1.0">
-        <variable name="GOOGLE_PLAY_SERVICES_VERSION" value="19.0.0" />
-        <variable name="ANDROID_SUPPORT_LIBRARY_VERSION" value="26.1.0" />
-    </plugin>
+    <!-- Plugin Background Geolocation (Transistorsoft - Kompatibel dengan Gradle 8+) -->
+    <plugin name="cordova-background-geolocation-lt" spec="^4.10.3" />
     
-    <!-- Plugin Foreground Service untuk notifikasi persisten -->
-    <plugin name="cordova-plugin-foreground-service" spec="^1.0.0" />
-    
-    <!-- Penyimpanan lokal SQLite -->
     <plugin name="cordova-sqlite-storage" spec="^6.1.0" />
-    
-    <!-- Deteksi status koneksi -->
     <plugin name="cordova-plugin-network-information" spec="^3.0.0" />
     
-    <engine name="android" spec=">=15.1.0" />
-    <engine name="ios" spec=">=6.3.0" />
+    <engine name="android" spec="^15.1.0" />
+    <engine name="ios" spec="^6.3.0" />
 </widget>
